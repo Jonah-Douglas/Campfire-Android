@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
 
                     RetrofitInstance.api.getUsers()
                 } catch (e: IOException) {
-                    Log.e(TAG, "IOException, you might not have internet connection")
+                    Log.e(TAG, "IOException, you might not have an internet connection")
                     return@repeatOnLifecycle
                 } catch (e: HttpException) {
                     Log.e(TAG, "HTTP Exception, unexpected response")
