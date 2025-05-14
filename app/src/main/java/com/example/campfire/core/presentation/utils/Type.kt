@@ -1,4 +1,4 @@
-package com.example.campfire.ui.theme
+package com.example.campfire.core.presentation.utils
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

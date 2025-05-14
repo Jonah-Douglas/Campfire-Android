@@ -1,7 +1,4 @@
-@file:Suppress("PropertyName")
-
-package com.example.campfire
-
+package com.example.campfire.auth.data
 
 data class Token(
     val access_token: String,

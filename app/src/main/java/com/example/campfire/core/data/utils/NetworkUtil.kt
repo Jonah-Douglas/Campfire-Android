@@ -1,12 +1,12 @@
-package com.example.campfire
+package com.example.campfire.core.data.utils
 
+import com.example.campfire.core.data.RetrofitInstance
+import com.example.campfire.auth.data.Token
 import okhttp3.Authenticator
-import okhttp3.Credentials.basic
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import java.util.concurrent.TimeUnit
-
 
 class NetworkUtil {
     val client: OkHttpClient.Builder = OkHttpClient.Builder()
@@ -20,8 +20,17 @@ class NetworkUtil {
             }
 //            val credential = basic("name", "password")
 //            response.request.newBuilder().header("Authorization", credential).build()
+//            val requestBody = MultipartBody.Builder()
+//                .setType(MultipartBody.FORM)
+//                .addFormDataPart("username", "jondou")
+//                .addFormDataPart("password", "1234")
+//                .build()
+            val newAccessToken = Token("jd", "bearer")//callAPILogin();
 
-            response.request.newBuilder().header("Authorization", "Bearer 1234567890").build()
+            newAccessToken?.let {
+                return@Authenticator response.request.newBuilder()
+                    .header(newAccessToken.token_type, newAccessToken.access_token).build()
+            }
         })
 
         client.connectTimeout(10, TimeUnit.SECONDS)
@@ -39,5 +48,15 @@ class NetworkUtil {
         }
 
         return result
+    }
+
+    private suspend fun callAPILogin(): Token? {
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.Companion.FORM)
+            .addFormDataPart("username", "jondou")
+            .addFormDataPart("password", "password")
+            .build()
+
+        return RetrofitInstance.api.login(requestBody).body()
     }
 }

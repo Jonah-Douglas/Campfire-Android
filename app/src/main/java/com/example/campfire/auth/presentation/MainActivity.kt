@@ -1,24 +1,16 @@
-package com.example.campfire
+package com.example.campfire.auth.presentation
 
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.example.campfire.ui.theme.CampfireTheme
+import com.example.campfire.core.data.RetrofitInstance
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
-import okhttp3.RequestBody
 import retrofit2.HttpException
 import java.io.IOException
 
@@ -26,18 +18,12 @@ import java.io.IOException
 const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            CampfireTheme {
-                Scaffold( modifier = Modifier.fillMaxSize() ) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
+            LandingScreen()
         }
 
         lifecycleScope.launch {
@@ -46,13 +32,15 @@ class MainActivity : ComponentActivity() {
                     val requestBody = MultipartBody.Builder()
                         .setType(MultipartBody.FORM)
                         .addFormDataPart("username", "jondou")
-                        .addFormDataPart("password", "1234")
+                        .addFormDataPart("password", "password")
                         .build()
 
                     // WORKING
                     val token = RetrofitInstance.api.login(requestBody).body()
 
                     val requestBody2 = MultipartBody.Builder()
+                    println(token)
+                    println(requestBody2)
 
                     RetrofitInstance.api.getUsers()
                 } catch (e: IOException) {
@@ -70,21 +58,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    CampfireTheme {
-        Greeting("Android")
     }
 }

@@ -1,5 +1,4 @@
-package com.example.campfire
-
+package com.example.campfire.auth.data.models
 
 data class User(
     val email: String,

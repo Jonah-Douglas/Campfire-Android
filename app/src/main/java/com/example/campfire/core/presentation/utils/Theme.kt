@@ -1,6 +1,5 @@
-package com.example.campfire.ui.theme
+package com.example.campfire.core.presentation.utils
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
