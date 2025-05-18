@@ -1,5 +1,8 @@
-package com.example.campfire.auth.data.models
+package com.example.campfire.auth.domain.model
 
+
+@Suppress("unused")
+// User model defined by Campfire API
 data class User(
     val email: String,
     val isActive: Boolean,
