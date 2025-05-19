@@ -24,7 +24,6 @@ import javax.inject.Singleton
 const val BASE_URL = "http://127.0.0.1:8000" // Or from BuildConfig
 
 // JD TODO: Confirm Suppressions are necessary
-@Suppress("unused")
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {

@@ -61,9 +61,9 @@ class AuthActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthApp() {
-    val context = LocalContext.current
+    LocalContext.current
     val viewModel: AuthViewModel = hiltViewModel()
-    val coroutineScope = rememberCoroutineScope()
+    rememberCoroutineScope()
     //Show different screens
     var showRegister by rememberSaveable { mutableStateOf(true) } // Start with register
     var showEmailVerification by rememberSaveable { mutableStateOf(false) }
@@ -116,7 +116,7 @@ fun AuthApp() {
             if (showRegister) {
                 RegisterScreen(
                     viewModel = viewModel,
-                    onRegister = { viewModel.registerUser(context, coroutineScope) },
+                    onRegister = { viewModel.registerUser() },
                     onNavigateToLogin = {
                         showRegister = false
                         showLogin = true
@@ -130,7 +130,7 @@ fun AuthApp() {
             } else if (showEmailVerification) {
                 EmailVerificationScreen(
                     viewModel = viewModel,
-                    onVerifyEmail = { viewModel.verifyEmail(context, coroutineScope) },
+                    onVerifyEmail = { viewModel.verifyEmail() },
                     onNavigateToPhoneVerification = {
                         showEmailVerification = false
                         showPhoneVerification = true
@@ -140,7 +140,7 @@ fun AuthApp() {
             } else if (showPhoneVerification) {
                 PhoneVerificationScreen(
                     viewModel = viewModel,
-                    onVerifyPhone = { viewModel.verifyPhone(context, coroutineScope) },
+                    onVerifyPhone = { viewModel.verifyPhone() },
                     onNavigateToLogin = {
                         showPhoneVerification = false
                         showLogin = true
@@ -150,7 +150,7 @@ fun AuthApp() {
             } else if (showLogin) {
                 LoginScreen(
                     viewModel = viewModel,
-                    onLogin = { viewModel.loginUser(context, coroutineScope) },
+                    onLogin = { viewModel.loginUser() },
                     onNavigateToRegister = {
                         showLogin = false
                         showRegister = true

@@ -5,7 +5,6 @@ import android.util.Log
 import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import kotlin.random.Random
 
 
 private const val AES_MODE = "AES/GCM/NoPadding"
@@ -18,12 +17,14 @@ fun encryptData(data: String?, secretKey: SecretKey): String? {
     }
     
     val cipher = Cipher.getInstance(AES_MODE)
-    val iv = ByteArray(IV_SIZE).apply {
-        Random.nextBytes(this)
+    
+    cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+    val iv = cipher.iv
+    if (iv == null || iv.size != IV_SIZE) {
+        Log.e("EncryptData", "IV was not generated or has incorrect size.")
+        return null
     }
     
-    val spec = GCMParameterSpec(TAG_LENGTH, iv)
-    cipher.init(Cipher.ENCRYPT_MODE, secretKey, spec)
     val encrypted = cipher.doFinal(data.toByteArray(Charsets.UTF_8))
     val combined = iv + encrypted
     
@@ -45,6 +46,7 @@ fun decryptData(encryptedData: String?, secretKey: SecretKey): String? {
         
         val iv = combined.copyOfRange(0, IV_SIZE)
         val encryptedPayload = combined.copyOfRange(IV_SIZE, combined.size)
+        
         val cipher = Cipher.getInstance(AES_MODE)
         val spec = GCMParameterSpec(TAG_LENGTH, iv)
         cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)

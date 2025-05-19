@@ -1,6 +1,5 @@
 package com.example.campfire.core.data.utils
 
-import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
@@ -10,7 +9,7 @@ import javax.crypto.SecretKey
 
 private const val KEY_ALIAS = "com.example.campfire.encryption_key"
 
-fun getOrCreateSecretKey(context: Context): SecretKey {
+fun getOrCreateSecretKey(): SecretKey {
     val keyStore = KeyStore.getInstance("AndroidKeyStore").apply {
         load(null)
     }

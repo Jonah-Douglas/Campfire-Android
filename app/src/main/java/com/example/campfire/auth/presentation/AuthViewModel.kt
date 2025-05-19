@@ -1,6 +1,5 @@
 package com.example.campfire.auth.presentation
 
-import android.content.Context
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.text.input.TextFieldValue
@@ -12,7 +11,6 @@ import com.example.campfire.auth.data.remote.dto.request.RegisterRequest
 import com.example.campfire.auth.data.remote.dto.request.VerifyEmailRequest
 import com.example.campfire.auth.data.remote.dto.request.VerifyPhoneRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -81,7 +79,7 @@ class AuthViewModel @Inject constructor(
     }
     
     // Function to handle user registration
-    fun registerUser(context: Context, coroutineScope: CoroutineScope) {
+    fun registerUser() {
         viewModelScope.launch {
             _isLoading.value = true
             _message.value = "Registering..."
@@ -110,7 +108,7 @@ class AuthViewModel @Inject constructor(
     }
     
     // Function to handle email verification
-    fun verifyEmail(context: Context, coroutineScope: CoroutineScope) {
+    fun verifyEmail() {
         viewModelScope.launch {
             _isLoading.value = true
             _message.value = "Verifying Email..."
@@ -139,7 +137,7 @@ class AuthViewModel @Inject constructor(
     }
     
     // Function to handle phone verification
-    fun verifyPhone(context: Context, coroutineScope: CoroutineScope) {
+    fun verifyPhone() {
         viewModelScope.launch {
             _isLoading.value = true
             _message.value = "Verifying Phone..."
@@ -167,7 +165,7 @@ class AuthViewModel @Inject constructor(
         }
     }
     
-    fun loginUser(context: Context, coroutineScope: CoroutineScope) {
+    fun loginUser() {
         viewModelScope.launch {
             _isLoading.value = true
             _message.value = "Logging in..."

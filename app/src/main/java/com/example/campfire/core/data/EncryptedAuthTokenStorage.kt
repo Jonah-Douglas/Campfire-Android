@@ -10,11 +10,15 @@ import com.example.campfire.core.data.utils.getOrCreateSecretKey
 import javax.crypto.SecretKey
 
 
+private const val PREFS_NAME = "auth_token_prefs"
+private const val PREF_KEY_ACCESS_TOKEN = "auth_access_token"
+private const val PREF_KEY_REFRESH_TOKEN = "auth_refresh_token"
+
 class EncryptedAuthTokenStorage(context: Context) : AuthTokenStorage {
     private val sharedPreferences: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     
-    private val secretKey: SecretKey = getOrCreateSecretKey(context)
+    private val secretKey: SecretKey = getOrCreateSecretKey()
     
     override suspend fun saveTokens(tokens: AuthTokens?) {
         if (tokens == null) {
@@ -57,11 +61,5 @@ class EncryptedAuthTokenStorage(context: Context) : AuthTokenStorage {
             remove(PREF_KEY_REFRESH_TOKEN)
             apply()
         }
-    }
-    
-    companion object {
-        private const val PREFS_NAME = "auth_token_prefs"
-        private const val PREF_KEY_ACCESS_TOKEN = "auth_access_token"
-        private const val PREF_KEY_REFRESH_TOKEN = "auth_refresh_token"
     }
 }
