@@ -42,12 +42,6 @@ class EncryptedAuthTokenStorageTest {
             actualPrefs.edit().putString(key, value).commit()
         }
         
-        fun readRawString(key: String): String? {
-            // Reads from the *actual* SharedPreferences file.
-            val actualPrefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-            return actualPrefs.getString(key, null)
-        }
-        
         fun clearAllRaw() {
             val actualPrefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             actualPrefs.edit().clear().commit()
