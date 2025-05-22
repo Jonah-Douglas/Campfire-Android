@@ -7,7 +7,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
 
-private const val KEY_ALIAS = "com.example.campfire.encryption_key"
+internal const val KEY_ALIAS = "com.example.campfire.encryption_key"
 
 fun getOrCreateSecretKey(): SecretKey {
     val keyStore = KeyStore.getInstance("AndroidKeyStore").apply {

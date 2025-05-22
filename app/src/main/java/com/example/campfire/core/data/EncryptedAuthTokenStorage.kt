@@ -10,9 +10,9 @@ import com.example.campfire.core.data.utils.getOrCreateSecretKey
 import javax.crypto.SecretKey
 
 
-private const val PREFS_NAME = "auth_token_prefs"
-private const val PREF_KEY_ACCESS_TOKEN = "auth_access_token"
-private const val PREF_KEY_REFRESH_TOKEN = "auth_refresh_token"
+internal const val PREFS_NAME = "auth_token_prefs"
+internal const val PREF_KEY_ACCESS_TOKEN = "auth_access_token"
+internal const val PREF_KEY_REFRESH_TOKEN = "auth_refresh_token"
 
 class EncryptedAuthTokenStorage(context: Context) : AuthTokenStorage {
     private val sharedPreferences: SharedPreferences =

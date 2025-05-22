@@ -7,9 +7,9 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 
-private const val AES_MODE = "AES/GCM/NoPadding"
-private const val IV_SIZE = 12 // 96 bits
-private const val TAG_LENGTH = 128 // 128 bits
+internal const val AES_MODE = "AES/GCM/NoPadding"
+internal const val IV_SIZE = 12 // 96 bits
+internal const val TAG_LENGTH = 128 // 128 bits
 
 fun encryptData(data: String?, secretKey: SecretKey): String? {
     if (data.isNullOrEmpty()) {

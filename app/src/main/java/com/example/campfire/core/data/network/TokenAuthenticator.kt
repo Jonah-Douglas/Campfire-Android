@@ -123,6 +123,4 @@ class TokenAuthenticator @Inject constructor(
         
         return result
     }
-    
-    
 }

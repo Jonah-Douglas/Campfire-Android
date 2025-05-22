@@ -41,6 +41,7 @@ android {
     
     kotlinOptions {
         jvmTarget = "21"
+        freeCompilerArgs += "-Xlint:deprecation"
     }
     
     buildFeatures {
@@ -77,6 +78,7 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.junit)
+    testImplementation(libs.mockk.core)
     
     // Retrofit & OkHttp
     implementation(libs.retrofit)

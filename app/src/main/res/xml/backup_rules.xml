@@ -2,7 +2,11 @@
    Sample backup rules file; uncomment and customize as necessary.
    See https://developer.android.com/guide/topics/data/autobackup
    for details.
+
+   // This file shouldn't ever be used, but keeping around for now just in case
    Note: This file is ignored for devices older that API 31
+
+
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
