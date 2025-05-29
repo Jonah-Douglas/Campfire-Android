@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose.compiler)
-    alias(libs.plugins.hilt.gradle) // Using renamed plugin alias
+    alias(libs.plugins.hilt.gradle)
     id("kotlin-kapt")
 }
 
@@ -24,7 +24,9 @@ android {
     }
     
     buildTypes {
-        release {
+        debug {
+            // For debug builds
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -32,6 +34,30 @@ android {
             )
             isDebuggable = true
         }
+        release {
+            // For release builds
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        create("staging") {
+            initWith(getByName("debug"))
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            isDebuggable = true
+            applicationIdSuffix = ".staging"
+        }
+    }
+    
+    buildFeatures {
+        buildConfig = true
     }
     
     compileOptions {
@@ -41,7 +67,6 @@ android {
     
     kotlinOptions {
         jvmTarget = "21"
-        freeCompilerArgs += "-Xlint:deprecation"
     }
     
     buildFeatures {
@@ -97,11 +122,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 }
-
-// Catch deprecated warnings
-//tasks.withType<JavaCompile>().configureEach {
-//    options.compilerArgs.add("-Xlint:deprecation")
-//}
 
 kapt {
     correctErrorTypes = true

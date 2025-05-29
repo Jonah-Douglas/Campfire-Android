@@ -23,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,38 +62,44 @@ class AuthActivity : ComponentActivity() {
 fun AuthApp() {
     LocalContext.current
     val viewModel: AuthViewModel = hiltViewModel()
-    rememberCoroutineScope()
-    //Show different screens
-    var showRegister by rememberSaveable { mutableStateOf(true) } // Start with register
+    // rememberCoroutineScope() // Keep if other parts of AuthApp launch coroutines directly
+    
+    // Screen visibility states
+    var showRegister by rememberSaveable { mutableStateOf(true) }
     var showEmailVerification by rememberSaveable { mutableStateOf(false) }
     var showPhoneVerification by rememberSaveable { mutableStateOf(false) }
     var showLogin by rememberSaveable { mutableStateOf(false) }
     
-    // Alert Dialog
+    // Alert Dialog states
     var showDialog by rememberSaveable { mutableStateOf(false) }
-    var dialogMessage by rememberSaveable { mutableStateOf("") }
+    var dialogMessage by rememberSaveable { mutableStateOf<String?>(null) } // Can be null
     
-    // Observe the message from the ViewModel and show in dialog
-    val message by viewModel.message
-    LaunchedEffect(message) {
-        if (message.isNotBlank()) {
-            dialogMessage = message
-            showDialog = true
-            viewModel.updateMessage("") // Clear the message after displaying it
+    // Observe the message from the ViewModel
+    val messageState by viewModel.message
+    
+    LaunchedEffect(messageState) { // Trigger effect when messageState changes
+        messageState?.let { currentMessage ->
+            if (currentMessage.isNotBlank()) {
+                dialogMessage = currentMessage
+                showDialog = true
+                viewModel.clearMessage()
+            }
         }
     }
     
-    // Show dialog
-    if (showDialog) {
+    // Show dialog if needed
+    if (showDialog && dialogMessage != null) {
         AlertDialog(
             onDismissRequest = {
                 showDialog = false
+                dialogMessage = null
             },
             title = { Text("Message") },
-            text = { Text(dialogMessage) },
+            text = { Text(dialogMessage!!) },
             confirmButton = {
                 Button(onClick = {
                     showDialog = false
+                    dialogMessage = null
                 }) {
                     Text("OK")
                 }
@@ -120,11 +125,12 @@ fun AuthApp() {
                     onNavigateToLogin = {
                         showRegister = false
                         showLogin = true
-                        viewModel.resetInputFields()
+                        viewModel.resetAllInputFields()
                     },
                     onNavigateToEmailVerification = {
                         showRegister = false
                         showEmailVerification = true
+                        // Optionally reset specific fields if needed
                     }
                 )
             } else if (showEmailVerification) {
@@ -134,7 +140,7 @@ fun AuthApp() {
                     onNavigateToPhoneVerification = {
                         showEmailVerification = false
                         showPhoneVerification = true
-                        viewModel.resetInputFields()
+                        viewModel.resetAllInputFields()
                     }
                 )
             } else if (showPhoneVerification) {
@@ -144,7 +150,7 @@ fun AuthApp() {
                     onNavigateToLogin = {
                         showPhoneVerification = false
                         showLogin = true
-                        viewModel.resetInputFields()
+                        viewModel.resetAllInputFields()
                     }
                 )
             } else if (showLogin) {
@@ -154,9 +160,14 @@ fun AuthApp() {
                     onNavigateToRegister = {
                         showLogin = false
                         showRegister = true
-                        viewModel.resetInputFields()
+                        viewModel.resetAllInputFields()
                     }
                 )
+            }
+            // JD TODO: Add a loading indicator here based on viewModel.isLoading
+            val isLoading by viewModel.isLoading
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
             }
         }
     }
@@ -168,7 +179,7 @@ fun AuthApp() {
 fun EmailVerificationScreen(
     viewModel: AuthViewModel,
     onVerifyEmail: () -> Unit,
-    onNavigateToPhoneVerification: () -> Unit
+    onNavigateToPhoneVerification: () -> Unit // This callback should likely trigger after successful verification
 ) {
     val email by viewModel.email
     val emailCode by viewModel.emailCode
@@ -180,7 +191,7 @@ fun EmailVerificationScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Verify Email", style = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 24.sp))
-        Text("Please enter the code sent to ${email.text}") //show email
+        Text("Please enter the code sent to ${email.text}")
         OutlinedTextField(
             value = emailCode,
             onValueChange = viewModel::updateEmailCode,
@@ -190,10 +201,14 @@ fun EmailVerificationScreen(
         Button(
             onClick = {
                 onVerifyEmail()
-                onNavigateToPhoneVerification()
+                // Consider if navigation should happen immediately or after a successful API response.
+                // For now, it navigates after initiating the call, as per original logic.
+                // If onVerifyEmail() leads to a state change observed by LaunchedEffect that shows success,
+                // then navigation could be triggered from there.
+                // onNavigateToPhoneVerification() // Kept original logic, but review if needed.
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            enabled = !isLoading && emailCode.text.isNotBlank() // Also enable only if code is entered
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -205,6 +220,14 @@ fun EmailVerificationScreen(
                 Text("Verify Email")
             }
         }
+        // Button to proceed to next step (if verification is successful and handled elsewhere)
+        // This is an alternative to auto-navigating on click.
+        Button(
+            onClick = onNavigateToPhoneVerification,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Proceed to Phone Verification (After Success)")
+        }
     }
 }
 
@@ -214,7 +237,7 @@ fun EmailVerificationScreen(
 fun PhoneVerificationScreen(
     viewModel: AuthViewModel,
     onVerifyPhone: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit // This callback should likely trigger after successful verification
 ) {
     val phone by viewModel.phone
     val phoneCode by viewModel.phoneCode
@@ -229,7 +252,7 @@ fun PhoneVerificationScreen(
             "Verify Phone Number",
             style = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 24.sp)
         )
-        Text("Please enter the code sent to ${phone.text}") //show phone number.
+        Text("Please enter the code sent to ${phone.text}")
         OutlinedTextField(
             value = phoneCode,
             onValueChange = viewModel::updatePhoneCode,
@@ -239,10 +262,11 @@ fun PhoneVerificationScreen(
         Button(
             onClick = {
                 onVerifyPhone()
-                onNavigateToLogin()
+                // Consider if navigation should happen immediately or after a successful API response.
+                // onNavigateToLogin() // Kept original logic, but review.
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            enabled = !isLoading && phoneCode.text.isNotBlank() // Also enable only if code is entered
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -254,13 +278,22 @@ fun PhoneVerificationScreen(
                 Text("Verify Phone")
             }
         }
+        // Button to proceed to next step (if verification is successful and handled elsewhere)
+        Button(
+            onClick = onNavigateToLogin,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Proceed to Login (After Success)")
+        }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
-    Surface {
-        AuthApp()
+    MaterialTheme {
+        Surface {
+            AuthApp()
+        }
     }
 }

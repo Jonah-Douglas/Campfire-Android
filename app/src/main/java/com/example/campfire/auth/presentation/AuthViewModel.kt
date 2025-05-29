@@ -1,25 +1,28 @@
 package com.example.campfire.auth.presentation
 
+import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.campfire.auth.data.remote.AuthApiService
-import com.example.campfire.auth.data.remote.dto.request.LoginRequest
 import com.example.campfire.auth.data.remote.dto.request.RegisterRequest
 import com.example.campfire.auth.data.remote.dto.request.VerifyEmailRequest
 import com.example.campfire.auth.data.remote.dto.request.VerifyPhoneRequest
+import com.example.campfire.auth.domain.repository.LoginResult
+import com.example.campfire.auth.domain.usecase.LoginUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
-@HiltViewModel // ViewModel for handling authentication logic
+@HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val apiService: AuthApiService
+    private val loginUserUseCase: LoginUserUseCase,
+    // Keep these for register/verify until they are also refactored with use cases
+    private val apiService: AuthApiService,
 ) : ViewModel() {
-    //use saved states.
     private var _email = mutableStateOf(TextFieldValue(""))
     val email: State<TextFieldValue> = _email
     
@@ -35,16 +38,15 @@ class AuthViewModel @Inject constructor(
     private var _phoneCode = mutableStateOf(TextFieldValue(""))
     val phoneCode: State<TextFieldValue> = _phoneCode
     
-    private var _message = mutableStateOf("")
-    val message: State<String> = _message
+    private var _message = mutableStateOf<String?>(null)
+    val message: State<String?> = _message
     
     private var _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
     
     private var _isPasswordVisible = mutableStateOf(false)
-    val isPasswordVisible = _isPasswordVisible
+    val isPasswordVisible: State<Boolean> = _isPasswordVisible
     
-    //Functions to update the state
     fun updateEmail(value: TextFieldValue) {
         _email.value = value
     }
@@ -65,10 +67,6 @@ class AuthViewModel @Inject constructor(
         _phoneCode.value = value
     }
     
-    fun updateMessage(value: String) {
-        _message.value = value
-    }
-    
     @Suppress("unused")
     fun updateIsLoading(value: Boolean) {
         _isLoading.value = value
@@ -78,28 +76,75 @@ class AuthViewModel @Inject constructor(
         _isPasswordVisible.value = !_isPasswordVisible.value
     }
     
-    // Function to handle user registration
+    // --- Login Function Refactored ---
+    fun loginUser() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _message.value = "Logging in..." // Initial message
+            
+            val result = loginUserUseCase.invoke(
+                email = email.value.text,
+                password = password.value.text
+            )
+            
+            when (result) {
+                is LoginResult.Success -> {
+                    _message.value = "Login successful! Welcome."
+                    Log.d(
+                        "AuthViewModel",
+                        "Login Successful. Access Token: ${result.tokens.accessToken}"
+                    )
+                    // TODO: Navigate to the next screen (e.g., main app screen)
+                    // This navigation should be handled by observing a state/event from the Composable
+                }
+                
+                is LoginResult.InvalidCredentialsError -> {
+                    _message.value = "Incorrect email or password."
+                }
+                
+                is LoginResult.UserInactiveError -> {
+                    _message.value = "This user account is inactive."
+                }
+                
+                is LoginResult.NetworkError -> {
+                    _message.value = result.message ?: "A network error occurred."
+                }
+                
+                is LoginResult.GenericError -> {
+                    _message.value = result.message ?: "An unexpected error occurred."
+                    result.code?.let {
+                        Log.e(
+                            "AuthViewModel",
+                            "Login Generic Error - Code: $it, Message: ${result.message}"
+                        )
+                    }
+                        ?: Log.e(
+                            "AuthViewModel",
+                            "Login Generic Error - Message: ${result.message}"
+                        )
+                }
+            }
+            _isLoading.value = false
+        }
+    }
+    
+    // --- Register, VerifyEmail, VerifyPhone remain similar for now ---
+    // --- You would ideally create UseCases for these as well ---
     fun registerUser() {
         viewModelScope.launch {
             _isLoading.value = true
             _message.value = "Registering..."
-            
             try {
-                // JD TODO: Hardcode these for now I think, populate them correctly later
-                val request = RegisterRequest(
-                    email.value.text,
-                    phone.value.text,
-                    password.value.text
-                )
+                val request =
+                    RegisterRequest(email.value.text, phone.value.text, password.value.text)
                 val response = apiService.registerUser(request).execute()
-                
                 if (response.isSuccessful && response.body() != null) {
                     _message.value = response.body()?.data?.message ?: "Registration successful"
-                    // Consider navigating to email verification screen here
                 } else {
                     _message.value = "Registration failed: ${response.errorBody()?.string()}"
                 }
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "Register exception", e)
                 _message.value = "Error: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -107,28 +152,21 @@ class AuthViewModel @Inject constructor(
         }
     }
     
-    // Function to handle email verification
     fun verifyEmail() {
         viewModelScope.launch {
             _isLoading.value = true
             _message.value = "Verifying Email..."
-            
             try {
-                // JD TODO: Hardcode these for now I think, populate them correctly later
-                val request = VerifyEmailRequest(
-                    email.value.text,
-                    emailCode.value.text
-                )
+                val request = VerifyEmailRequest(email.value.text, emailCode.value.text)
                 val response = apiService.verifyEmail(request).execute()
-                
                 if (response.isSuccessful && response.body() != null) {
                     _message.value =
                         response.body()?.data?.message ?: "Email verification successful!"
-                    // Consider navigating to phone verification here
                 } else {
                     _message.value = "Verify Email failed: ${response.errorBody()?.string()}"
                 }
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "VerifyEmail exception", e)
                 _message.value = "Error: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -136,70 +174,39 @@ class AuthViewModel @Inject constructor(
         }
     }
     
-    // Function to handle phone verification
     fun verifyPhone() {
         viewModelScope.launch {
             _isLoading.value = true
             _message.value = "Verifying Phone..."
-            
             try {
-                // JD TODO: Hardcode these for now I think, populate them correctly later
-                val request = VerifyPhoneRequest(
-                    phone.value.text,
-                    phoneCode.value.text
-                )
+                val request = VerifyPhoneRequest(phone.value.text, phoneCode.value.text)
                 val response = apiService.verifyPhone(request).execute()
-                
                 if (response.isSuccessful && response.body() != null) {
                     _message.value =
                         response.body()?.data?.message ?: "Phone verification successful!"
-                    // Consider navigating to login or main app screen
                 } else {
                     _message.value = "Verify Phone failed: ${response.errorBody()?.string()}"
                 }
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "VerifyPhone exception", e)
                 _message.value = "Error: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
     }
+    // --- End of Register, VerifyEmail, VerifyPhone ---
     
-    fun loginUser() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _message.value = "Logging in..."
-            
-            try {
-                // JD TODO: Hardcode these for now I think, populate them correctly later
-                val request = LoginRequest(
-                    email.value.text,
-                    password.value.text
-                )
-                val response = apiService.loginUser(request).execute()
-                
-                if (response.isSuccessful && response.body() != null) {
-                    _message.value = response.body()?.data?.message
-                        ?: "Login successful! Token: ${response.body()?.data?.token}."
-                    //  Store the token and navigate to main part of the app.
-                    // For demonstration, we'll just display it.
-                } else {
-                    _message.value = "Login failed"
-                }
-            } catch (e: Exception) {
-                _message.value = "Error: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
+    fun clearMessage() {
+        _message.value = null
     }
     
-    fun resetInputFields() {
+    fun resetAllInputFields() {
         _email.value = TextFieldValue("")
         _phone.value = TextFieldValue("")
         _password.value = TextFieldValue("")
         _emailCode.value = TextFieldValue("")
         _phoneCode.value = TextFieldValue("")
-        _message.value = ""
+        clearMessage()
     }
 }

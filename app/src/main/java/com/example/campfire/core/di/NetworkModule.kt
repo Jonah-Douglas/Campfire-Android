@@ -1,9 +1,6 @@
 package com.example.campfire.core.di
 
-import android.content.Context
-import com.example.campfire.auth.data.remote.AuthApiService
-import com.example.campfire.core.data.EncryptedAuthTokenStorage
-import com.example.campfire.core.data.auth.AuthTokenStorage
+import com.example.campfire.BuildConfig
 import com.example.campfire.core.data.network.TokenAuthenticator
 import com.example.campfire.profile.data.remote.ProfileApiService
 import dagger.Module
@@ -19,20 +16,9 @@ import javax.inject.Named
 import javax.inject.Singleton
 
 
-// JD TODO: Confirm one or the other urls is correct for base
-// const val BASE_URL = "http://10.0.2.2:8000/"
-const val BASE_URL = "http://127.0.0.1:8000" // Or from BuildConfig
-
-// JD TODO: Confirm Suppressions are necessary
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-    
-    @Provides
-    @Singleton
-    fun provideAuthTokenStorage(context: Context): AuthTokenStorage {
-        return EncryptedAuthTokenStorage(context)
-    }
     
     // OkHttpClient for general API calls (uses TokenAuthenticator)
     @Provides
@@ -93,7 +79,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(@Named("AuthenticatedClient") okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -105,18 +91,13 @@ object NetworkModule {
     @Named("TokenRefreshRetrofit")
     fun provideTokenRefreshRetrofit(@Named("TokenRefreshClient") okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BASE_URL) // Ensure this is correct for your refresh endpoint
+            .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
     
-    @Provides
-    @Singleton
-    fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
-        return retrofit.create(AuthApiService::class.java)
-    }
-    
+    // JD TODO: Move this into its own module within the profile feature when I get to that
     @Provides
     @Singleton
     fun provideProfileApiService(@Named("TokenRefreshRetrofit") retrofit: Retrofit): ProfileApiService {
