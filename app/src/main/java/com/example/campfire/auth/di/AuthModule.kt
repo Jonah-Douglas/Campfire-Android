@@ -14,7 +14,6 @@ import retrofit2.Retrofit
 import javax.inject.Singleton
 
 
-@Suppress("unused")
 @Module
 @InstallIn(SingletonComponent::class)
 object AuthModule {

@@ -36,7 +36,7 @@ class TokenAuthenticator @Inject constructor(
         val currentRefreshToken = currentTokens?.refreshToken
         
         if (currentRefreshToken == null) {
-            // No refresh token, logout user or handle accordingly
+            // JD TODO: Add logout call here (user then needs to login to receive new access and refresh token)
             Log.w("TokenAuthenticator", "No refresh token found. Clearing tokens.")
             runBlocking { tokenStorage.clearTokens() }
             return null
@@ -67,8 +67,7 @@ class TokenAuthenticator @Inject constructor(
                 // or re-fetch if there's a concern it might have been cleared by another process.
                 // Using currentRefreshToken fetched before the synchronized block is generally fine.
                 val refreshCall = tokenRefreshApiService.get() // Get instance from Lazy
-                    // JD TODO: Replace empty string with the token type I need to pass with the token
-                    .refreshAuthToken(RefreshTokenRequest(currentRefreshToken, ""))
+                    .refreshAuthToken(RefreshTokenRequest(refreshToken = currentRefreshToken))
                 
                 val refreshAPIResponse = refreshCall.execute() // Synchronous execution
                 

@@ -1,7 +1,9 @@
 package com.example.campfire.auth.data.remote.dto.request
 
+import com.google.gson.annotations.SerializedName
+
 
 data class RefreshTokenRequest(
-    val accessToken: String,
-    val tokenType: String
+    @SerializedName("refresh_token")
+    val refreshToken: String,
 )
