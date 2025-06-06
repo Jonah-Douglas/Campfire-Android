@@ -34,7 +34,7 @@ interface AuthApiService {
     fun verifyPhone(@Body request: VerifyPhoneRequest): Call<ApiResponse<MessageResponse>>
     
     @FormUrlEncoded
-    @POST("/api/v1/auth/login")
+    @POST("/auth/login")
     suspend fun loginUser(
         @Field("username") username: String,
         @Field("password") password: String,

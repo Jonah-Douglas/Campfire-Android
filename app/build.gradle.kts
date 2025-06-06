@@ -12,7 +12,7 @@ android {
     
     defaultConfig {
         applicationId = "com.example.campfire"
-        minSdk = 30
+        minSdk = 34
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -26,7 +26,7 @@ android {
     buildTypes {
         debug {
             // For debug builds
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/api/v1/\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -36,7 +36,7 @@ android {
         }
         release {
             // For release builds
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/api/v1/\"")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -45,7 +45,6 @@ android {
         }
         create("staging") {
             initWith(getByName("debug"))
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -121,6 +120,10 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+    
+    // Splash Screen
+    implementation(libs.core.splashscreen)
+    implementation(libs.material)
 }
 
 kapt {

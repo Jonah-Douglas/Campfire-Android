@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Palette 1: Dark Theme -->
+    <color name="primary">#E0BBAA</color> <!-- Lighter Brown -->
+    <color name="onPrimary">#44291E</color>
+    <color name="primaryContainer">#5D4037</color> <!-- Dark Brown -->
+    <color name="onPrimaryContainer">#FFDBCD</color>
+    <color name="secondary">#FF8A80</color> <!-- Lighter Muted Red -->
+    <color name="onSecondary">#5E100B</color>
+    <color name="secondaryContainer">#93000A</color> <!-- Dark Red -->
+    <color name="onSecondaryContainer">#FFDAD6</color>
+    <color name="tertiary">#FFD54F</color> <!-- Lighter Amber/Gold -->
+    <color name="onTertiary">#452700</color>
+    <color name="tertiaryContainer">#633A00</color> <!-- Dark Gold -->
+    <color name="onTertiaryContainer">#FFECB3</color>
+    <color name="error">#FFB4AB</color> <!-- Lighter Error Red -->
+    <color name="onError">#690005</color>
+    <color name="errorContainer">#93000A</color>
+    <color name="onErrorContainer">#FFDAD6</color>
+    <color name="background">#1C1B1A</color> <!-- Dark Grey/Brown -->
+    <color name="onBackground">#E6E1E0</color>
+    <color name="surface">#1C1B1A</color> <!-- Same as background -->
+    <color name="onSurface">#E6E1E0</color>
+    <color name="surfaceVariant">#4C4543</color> <!-- Slightly lighter dark grey/brown -->
+    <color name="onSurfaceVariant">#CEC4C2</color>
+    <color name="outline">#978F8D</color>
+    <color name="inverseSurface">#E6E1E0</color>
+    <color name="inverseOnSurface">#1C1B1A</color>
+    <color name="inversePrimary">#795548</color> <!-- Original light primary for light surface -->
+
+    <!-- Splash Screen Color -->
+    <color name="splash_background">#030826</color> <!-- Same as app background -->
+</resources>

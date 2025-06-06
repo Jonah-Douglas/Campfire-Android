@@ -2,9 +2,10 @@
 activityCompose = "1.10.1"
 agp = "8.10.1" # Android Gradle Plugin
 androidxMaterialIcons = "1.7.8"
-androidxSecurityCrypto = "1.1.0-alpha07"
-composeBom = "2025.05.01"
+androidxSecurityCrypto = "1.1.0-beta01"
+composeBom = "2025.06.00"
 converterGson = "2.9.0"
+core-splashscreen = "1.0.1"
 coreKtx = "1.16.0"
 espressoCore = "3.6.1"
 hilt = "2.52"
@@ -14,10 +15,11 @@ junitVersion = "1.2.1" # AndroidX Test JUnit version
 kotlin = "2.1.20"
 kotlinxCoroutinesAndroid = "1.7.3"
 kotlinxCoroutinesCore = "1.7.3"
-lifecycle = "2.9.0" # General lifecycle version
-lifecycleRuntimeKtx = "2.9.0"
-lifecycleViewmodelKtx = "2.9.0"
+lifecycle = "2.9.1" # General lifecycle version
+lifecycleRuntimeKtx = "2.9.1"
+lifecycleViewmodelKtx = "2.9.1"
 loggingInterceptor = "4.9.0"
+material = "1.12.0"
 mockk = "1.13.11"
 retrofit = "2.9.0"
 
@@ -59,16 +61,20 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 
 # Square OkHttp & Retrofit
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
-retrofit-converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" } # Renamed alias for clarity
-squareup-logging-interceptor = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "loggingInterceptor" } # Renamed alias for clarity
+retrofit-converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
+squareup-logging-interceptor = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "loggingInterceptor" }
 
 # Unit Testing
 junit = { module = "junit:junit", version.ref = "junit" }
 mockk-core = { module = "io.mockk:mockk", version.ref = "mockk" }
 
+# Splash Screen
+core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "core-splashscreen" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-# Renamed alias for clarity that this is for the Hilt Gradle plugin
-hilt-gradle = { id = "com.google.dagger.hilt.android", version.ref = "hilt" } # Changed from dagger-hilt to hilt-gradle
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" } # Renamed from jetbrains-kotlin-android
-kotlin-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" } # Renamed from compose-compiler
+hilt-gradle = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

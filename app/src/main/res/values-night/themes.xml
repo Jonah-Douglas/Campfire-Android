@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Use correct Material3 theme -->
+    <style name="Theme.Campfire" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Optional: Override specific dark-theme-only items here -->
+        <!-- Example: status bar color, if needed -->
+        <!-- <item name="android:statusBarColor">@color/some_dark_status_bar_color</item> -->
+    </style>
+
+    <!-- Splash theme for dark mode -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="windowSplashScreenIconBackgroundColor">@android:color/black</item>
+        <item name="postSplashScreenTheme">@style/Theme.Campfire</item>
+    </style>
+
+</resources>

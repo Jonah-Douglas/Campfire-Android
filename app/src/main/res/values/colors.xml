@@ -1,2 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources />
+<resources>
+    <!-- Palette 1: Light Theme -->
+    <color name="primary">#795548</color> <!-- Medium Brown -->
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="primaryContainer">#D7CCC8</color> <!-- Light Brown -->
+    <color name="onPrimaryContainer">#2D1610</color>
+    <color name="secondary">#C62828</color> <!-- Muted Red -->
+    <color name="onSecondary">#FFFFFF</color>
+    <color name="secondaryContainer">#FFCDD2</color> <!-- Light Red -->
+    <color name="onSecondaryContainer">#430000</color>
+    <color name="tertiary">#FFAB00</color> <!-- Amber/Gold -->
+    <color name="onTertiary">#000000</color>
+    <color name="tertiaryContainer">#FFECB3</color> <!-- Pale Gold -->
+    <color name="onTertiaryContainer">#2C1A00</color>
+    <color name="error">#B00020</color> <!-- Standard Error Red -->
+    <color name="onError">#FFFFFF</color>
+    <color name="errorContainer">#FCD8DF</color>
+    <color name="onErrorContainer">#3F000B</color>
+    <color name="background">#FFFBFA</color> <!-- Off-white/Very Light Beige -->
+    <color name="onBackground">#1C1B1A</color>
+    <color name="surface">#FFFBFA</color> <!-- Same as background for simplicity -->
+    <color name="onSurface">#1C1B1A</color>
+    <color name="surfaceVariant">#EDE0DD</color> <!-- Slightly darker beige/grey -->
+    <color name="onSurfaceVariant">#4C4543</color>
+    <color name="outline">#7C7573</color>
+    <color name="inverseSurface">#31302F</color>
+    <color name="inverseOnSurface">#F5F0EE</color>
+    <color name="inversePrimary">#E0BBAA</color> <!-- Lighter Brown for dark surface -->
+
+    <!-- Splash Screen Color -->
+    <color name="splash_background">#030826</color> <!-- Same as app background -->
+
+    <!-- Logo Colors -->
+    <color name="front_log_brown">#492A05</color>
+    <color name="rear_log_brown">#241301</color>
+    <color name="rear_log_accent">#1D0F01</color>
+    <color name="yellow_flame">#FFDD09</color>
+    <color name="orange_flame">#FD9808</color>
+    <color name="orange_flame_accent">#FD7308</color>
+    <color name="black">#FF000000</color>
+</resources>

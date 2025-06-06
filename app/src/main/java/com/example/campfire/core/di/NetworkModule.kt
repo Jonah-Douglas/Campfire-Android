@@ -46,6 +46,26 @@ object NetworkModule {
             .build()
     }
     
+    // Retrofit for the TokenRefreshApiService
+    @Provides
+    @Singleton
+    @Named("TokenRefreshRetrofit")
+    fun provideTokenRefreshRetrofit(@Named("TokenRefreshClient") okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(BuildConfig.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideTokenRefreshApiService(
+        @Named("TokenRefreshRetrofit") retrofit: Retrofit // Inject the Retrofit meant for token refresh
+    ): TokenRefreshApiService {
+        return retrofit.create(TokenRefreshApiService::class.java)
+    }
+    
     // This client will be used for most authenticated API calls
     @Provides
     @Singleton
@@ -92,26 +112,6 @@ object NetworkModule {
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-    }
-    
-    // Retrofit for the TokenRefreshApiService
-    @Provides
-    @Singleton
-    @Named("TokenRefreshRetrofit")
-    fun provideTokenRefreshRetrofit(@Named("TokenRefreshClient") okHttpClient: OkHttpClient): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl(BuildConfig.BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
-    
-    @Provides
-    @Singleton
-    fun provideTokenRefreshApiService(
-        @Named("TokenRefreshRetrofit") retrofit: Retrofit // Inject the Retrofit meant for token refresh
-    ): TokenRefreshApiService {
-        return retrofit.create(TokenRefreshApiService::class.java)
     }
     
     // JD TODO: Move this into its own module within the profile feature when I get to that
