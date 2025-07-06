@@ -5,6 +5,11 @@ import com.example.campfire.auth.data.remote.TokenRefreshApiService
 import com.example.campfire.auth.data.remote.dto.request.RefreshTokenRequest
 import com.example.campfire.core.data.auth.AuthTokenStorage
 import com.example.campfire.core.data.auth.AuthTokens
+import com.example.campfire.core.domain.SessionInvalidator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
 import okhttp3.Request
@@ -19,8 +24,14 @@ private const val MAX_RETRIES = 2
 @Singleton
 class TokenAuthenticator @Inject constructor(
     private val tokenStorage: AuthTokenStorage,
-    private val tokenRefreshApiService: dagger.Lazy<TokenRefreshApiService>
+    private val tokenRefreshApiService: dagger.Lazy<TokenRefreshApiService>,
+    private val sessionInvalidatorProvider: dagger.Lazy<SessionInvalidator>
 ) : Authenticator {
+    
+    private val authenticatorScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
+    private val sessionInvalidator: SessionInvalidator
+        get() = sessionInvalidatorProvider.get()
     
     override fun authenticate(route: Route?, response: Response): Request? {
         // 1. Check if we should even attempt (e.g., already tried, or request didn't have token)
@@ -36,9 +47,8 @@ class TokenAuthenticator @Inject constructor(
         val currentRefreshToken = currentTokens?.refreshToken
         
         if (currentRefreshToken == null) {
-            // JD TODO: Add logout call here (user then needs to login to receive new access and refresh token)
-            Log.w("TokenAuthenticator", "No refresh token found. Clearing tokens.")
-            runBlocking { tokenStorage.clearTokens() }
+            Log.w("TokenAuthenticator", "No refresh token. Triggering session invalidation.")
+            triggerSessionInvalidation()
             return null
         }
         
@@ -111,6 +121,25 @@ class TokenAuthenticator @Inject constructor(
             }
         }
     }
+    
+    private fun triggerSessionInvalidation() {
+        authenticatorScope.launch {
+            try {
+                sessionInvalidator.invalidateSessionAndTriggerLogout()
+                Log.i("TokenAuthenticator", "Session invalidation triggered successfully.")
+            } catch (e: Exception) {
+                Log.e(
+                    "TokenAuthenticator",
+                    "Failed to trigger session invalidation: ${e.message}",
+                    e
+                )
+                // Fallback: If sessionInvalidator fails, at least try to clear tokens directly
+                Log.w("TokenAuthenticator", "Fallback: Clearing tokens directly via tokenStorage.")
+                tokenStorage.clearTokens()
+            }
+        }
+    }
+    
     
     private fun responseCount(response: Response): Int {
         var currentResponse = response

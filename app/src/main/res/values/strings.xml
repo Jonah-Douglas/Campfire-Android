@@ -1,4 +1,30 @@
 <resources>
-    <string name="app_name">Campfire</string>
-    <string name="title_activity_auth">Auth</string>
+    <string name="campfire">Campfire</string>
+
+    <!-- Entry Screen Strings / JD TODO: Change this, stolen straight from Hinge -->
+    <string name="slogan">Up and at \'em!</string>
+    <string name="entry_agreement_part1">By tapping \'Sign In\' \/ \'Create Account\', you agree to our </string>
+    <string name="terms_of_service">Terms of Service</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="entry_agreement_part2">. Learn how we process your data in our </string>
+    <string name="ok_button">OK</string>
+
+    <!-- Login Screen Strings -->
+    <string name="login_title">Sign In</string>
+    <string name="login_email_label">Email</string>
+    <string name="login_password_label">Password</string>
+    <string name="login_show_password_description">Show password</string>
+    <string name="login_hide_password_description">Hide password</string>
+    <string name="login_button_text">Sign In</string>
+    <string name="login_register_prompt">Don\'t have an account? Register</string>
+    <string name="cd_navigate_back">Navigate back</string>
+
+    <!-- Register Screen Strings -->
+    <string name="register_title">Create Account</string>
+    <string name="register_email_label">Email</string>
+    <string name="register_phone_label">Phone Number</string>
+    <string name="register_password_label">Password</string>
+    <string name="register_confirm_password_label">Confirm Password</string>
+    <string name="register_button_text">Create Account</string>
+    <string name="register_login_prompt">Already have an account? Sign in</string>
 </resources>

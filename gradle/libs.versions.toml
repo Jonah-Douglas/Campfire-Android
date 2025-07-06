@@ -1,32 +1,35 @@
 [versions]
 activityCompose = "1.10.1"
-agp = "8.10.1" # Android Gradle Plugin
+agp = "8.11.0" # Android Gradle Plugin
 androidxMaterialIcons = "1.7.8"
 androidxSecurityCrypto = "1.1.0-beta01"
-composeBom = "2025.06.00"
-converterGson = "2.9.0"
+composeBom = "2025.06.01"
+converterGson = "3.0.0"
 core-splashscreen = "1.0.1"
 coreKtx = "1.16.0"
+datastore = "1.1.7"
 espressoCore = "3.6.1"
-hilt = "2.52"
+hilt = "2.56.2"
 hiltNavigationCompose = "1.2.0"
 junit = "4.13.2"
 junitVersion = "1.2.1" # AndroidX Test JUnit version
-kotlin = "2.1.20"
-kotlinxCoroutinesAndroid = "1.7.3"
-kotlinxCoroutinesCore = "1.7.3"
+kotlin = "2.2.0"
+kotlinxCoroutinesAndroid = "1.10.2"
+kotlinxCoroutinesCore = "1.10.2"
 lifecycle = "2.9.1" # General lifecycle version
 lifecycleRuntimeKtx = "2.9.1"
 lifecycleViewmodelKtx = "2.9.1"
-loggingInterceptor = "4.9.0"
+loggingInterceptor = "5.0.0"
 material = "1.12.0"
-mockk = "1.13.11"
-retrofit = "2.9.0"
+mockk = "1.14.4"
+navigationCompose = "2.9.1"
+retrofit = "3.0.0"
 
 [libraries]
 # AndroidX Core
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidxSecurityCrypto" }
+datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
 # AndroidX Activity & Lifecycle
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -43,6 +46,7 @@ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" } # Version f
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" } # Version from BOM
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" } # Version from BOM
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" } # Version from BOM
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
 # AndroidX Test
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espressoCore" }

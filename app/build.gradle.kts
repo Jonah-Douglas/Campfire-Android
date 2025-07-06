@@ -64,10 +64,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
     
-    kotlinOptions {
-        jvmTarget = "21"
-    }
-    
     buildFeatures {
         compose = true
     }
@@ -79,12 +75,20 @@ android {
     }
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+        freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
+    }
+}
+
 dependencies {
     // AndroidX Core + Lifecycle + Compose
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -111,6 +115,9 @@ dependencies {
     
     // Security
     implementation(libs.androidx.security.crypto)
+    
+    // Datastore
+    implementation(libs.datastore.preferences)
     
     // Hilt
     implementation(libs.hilt.android)

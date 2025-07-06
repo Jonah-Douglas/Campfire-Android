@@ -7,8 +7,10 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 
+/**
+ * Maintained as its own service outside of the AuthAPIService to uphold SRP, its different security considerations, and unique error handling.
+ */
 interface TokenRefreshApiService {
-    // JD TODO: Create this resource
     @POST("auth/refresh") // Or your actual refresh token endpoint
     fun refreshAuthToken(@Body request: RefreshTokenRequest): Call<RefreshedTokensResponse>
 }

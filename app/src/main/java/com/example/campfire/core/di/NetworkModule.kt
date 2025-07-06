@@ -72,7 +72,7 @@ object NetworkModule {
     @Named("AuthenticatedClient")
     fun provideAuthenticatedOkHttpClient(
         authInterceptor: AuthInterceptor,           // Injects the AuthInterceptor
-        tokenAuthenticator: TokenAuthenticator,     // Your existing TokenAuthenticator
+        tokenAuthenticator: TokenAuthenticator,     // Existing TokenAuthenticator
         loggingInterceptor: HttpLoggingInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
@@ -84,24 +84,6 @@ object NetworkModule {
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
     }
-    
-    // JD TODO: Might be able to remove this- confirm authenticated client handles refresh
-    // OkHttpClient for general API calls (uses TokenAuthenticator)
-//    @Provides
-//    @Singleton
-//    @Named("AuthenticatorClient")
-//    fun provideOkHttpClient(
-//        tokenAuthenticator: TokenAuthenticator,
-//        loggingInterceptor: HttpLoggingInterceptor
-//    ): OkHttpClient {
-//        return OkHttpClient.Builder()
-//            .addInterceptor(loggingInterceptor)
-//            .authenticator(tokenAuthenticator)
-//            .connectTimeout(10, TimeUnit.SECONDS)
-//            .writeTimeout(10, TimeUnit.SECONDS)
-//            .readTimeout(30, TimeUnit.SECONDS)
-//            .build()
-//    }
     
     // Retrofit for general authenticated API calls, using the "AuthenticatedClient"
     @Provides
