@@ -1,6 +1,7 @@
 package com.example.campfire.core.presentation
 
 import android.os.Bundle
+import android.view.animation.AlphaAnimation
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -12,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.navigation.compose.rememberNavController
 import com.example.campfire.core.presentation.navigation.AppNavigation
 import com.example.campfire.core.presentation.utils.CampfireTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -31,7 +33,7 @@ class MainActivity : ComponentActivity() {
         splashScreen.setKeepOnScreenCondition { !mainViewModel.isDataReady.value }
         
         splashScreen.setOnExitAnimationListener { splashScreenViewProvider ->
-            val fadeOut = android.view.animation.AlphaAnimation(1f, 0f).apply {
+            val fadeOut = AlphaAnimation(1f, 0f).apply {
                 duration = 300L
                 fillAfter = true
             }
@@ -43,15 +45,16 @@ class MainActivity : ComponentActivity() {
             CampfireTheme {
                 val isDataReady by mainViewModel.isDataReady.collectAsState()
                 val isAuthenticated by mainViewModel.authState.collectAsState()
+                val navController = rememberNavController()
                 val isEntryComplete by mainViewModel.isEntryComplete.collectAsState()
                 
                 if (isDataReady) {
                     AppNavigation(
                         isAuthenticated = isAuthenticated,
-                        isEntryComplete = isEntryComplete,
                         onAuthSuccess = { mainViewModel.userLoggedIn() },
                         onLogout = { mainViewModel.userLoggedOut() },
-                        onEntryScreenComplete = { mainViewModel.entryScreenCompleted() }
+                        navController = navController,
+                        isEntryComplete = isEntryComplete
                     )
                 } else {
                     // Your placeholder while system splash is waiting for isDataReady

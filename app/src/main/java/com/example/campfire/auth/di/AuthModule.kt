@@ -13,6 +13,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import retrofit2.Retrofit
+import javax.inject.Named
 import javax.inject.Singleton
 
 
@@ -36,7 +37,7 @@ abstract class AuthModule {
     companion object {
         @Provides
         @Singleton
-        fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
+        fun provideAuthApiService(@Named("AuthenticatedRetrofit") retrofit: Retrofit): AuthApiService {
             return retrofit.create(AuthApiService::class.java)
         }
         

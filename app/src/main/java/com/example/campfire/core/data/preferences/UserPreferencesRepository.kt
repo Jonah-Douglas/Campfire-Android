@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -25,10 +24,4 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
         .map { preferences ->
             preferences[PreferencesKeys.IS_ENTRY_COMPLETE] == true
         }
-    
-    suspend fun updateEntryComplete(isComplete: Boolean) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.IS_ENTRY_COMPLETE] = isComplete
-        }
-    }
 }

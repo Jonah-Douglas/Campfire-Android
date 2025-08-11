@@ -3,8 +3,10 @@ package com.example.campfire.core.data.network
 import android.util.Log
 import com.example.campfire.auth.data.remote.TokenRefreshApiService
 import com.example.campfire.auth.data.remote.dto.request.RefreshTokenRequest
-import com.example.campfire.core.data.auth.AuthTokenStorage
+import com.example.campfire.auth.data.remote.dto.response.ApiResponse
+import com.example.campfire.auth.data.remote.dto.response.RefreshedTokensResponse
 import com.example.campfire.core.data.auth.AuthTokens
+import com.example.campfire.core.data.auth.IAuthTokenManager
 import com.example.campfire.core.domain.SessionInvalidator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +17,7 @@ import okhttp3.Authenticator
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,8 +26,8 @@ private const val MAX_RETRIES = 2
 
 @Singleton
 class TokenAuthenticator @Inject constructor(
-    private val tokenStorage: AuthTokenStorage,
-    private val tokenRefreshApiService: dagger.Lazy<TokenRefreshApiService>,
+    private val tokenManager: IAuthTokenManager,
+    private val tokenRefreshApiServiceLazy: dagger.Lazy<TokenRefreshApiService>,
     private val sessionInvalidatorProvider: dagger.Lazy<SessionInvalidator>
 ) : Authenticator {
     
@@ -33,109 +36,143 @@ class TokenAuthenticator @Inject constructor(
     private val sessionInvalidator: SessionInvalidator
         get() = sessionInvalidatorProvider.get()
     
+    private val tokenRefreshApiService: TokenRefreshApiService
+        get() = tokenRefreshApiServiceLazy.get()
+    
     override fun authenticate(route: Route?, response: Response): Request? {
-        // 1. Check if we should even attempt (e.g., already tried, or request didn't have token)
-        val originalAccessTokenFromRequest =
-            response.request.header("Authorization")?.substringAfter("Bearer ")
+        Log.d(LOG_TAG, String.format(LOG_AUTH_REQUIRED, response.request.url))
         
-        if (responseCount(response) >= MAX_RETRIES || originalAccessTokenFromRequest == null) {
+        val originalAccessTokenFromRequest =
+            response.request.header(AUTHORIZATION)?.substringAfter(BEARER)
+        
+        // 1. Check if we should even attempt (e.g., already tried, or request didn't have token)
+        if (responseCount(response) >= MAX_RETRIES) {
+            Log.w(LOG_TAG, String.format(LOG_MAX_RETRIES, response.request.url))
+            // Consider triggering session invalidation if retries fail consistently with a valid token attempt
+            if (originalAccessTokenFromRequest != null) {
+                triggerSessionInvalidation(LOG_MAX_RETRIES_REACHED)
+            }
+            return null // Do not retry
+        }
+        
+        // If the original request didn't even have an access token,
+        // and it's a 401, this authenticator shouldn't handle it.
+        if (originalAccessTokenFromRequest == null) {
+            Log.d(LOG_TAG, LOG_MISSING_ACCESS_TOKEN)
             return null
         }
         
         // 2. Get the current tokens (synchronously)
-        val currentTokens = runBlocking { tokenStorage.getTokens() }
+        val currentTokens = runBlocking { tokenManager.getTokens() }
         val currentRefreshToken = currentTokens?.refreshToken
         
         if (currentRefreshToken == null) {
-            Log.w("TokenAuthenticator", "No refresh token. Triggering session invalidation.")
-            triggerSessionInvalidation()
+            Log.w(LOG_TAG, LOG_INVALIDATE_SESSION)
+            triggerSessionInvalidation(LOG_MISSING_REFRESH_TOKEN)
             return null
         }
         
-        // 3. Synchronized block to prevent multiple concurrent refresh attempts
+        // 3. Synchronized block to prevent multiple concurrent refresh attempts for the *same* bad token
         synchronized(this) {
             // Check if another thread already refreshed the token while we were waiting for the lock
             // Compare the access token currently in storage with the one from the failing request.
             // If they are different, it means a refresh likely already happened.
-            val potentiallyNewTokensAfterLock = runBlocking { tokenStorage.getTokens() }
-            val newAccessTokenAfterLock = potentiallyNewTokensAfterLock?.accessToken
+            val tokensAfterLock = runBlocking { tokenManager.getTokens() }
+            val accessTokenInStorageAfterLock = tokensAfterLock?.accessToken
             
-            if (newAccessTokenAfterLock != null && newAccessTokenAfterLock != originalAccessTokenFromRequest) {
-                Log.d("TokenAuthenticator", "Token refresh already in progress.")
+            // If a token exists in storage AND it's different from the one that caused the 401,
+            // it means another thread likely succeeded in refreshing it.
+            if (accessTokenInStorageAfterLock != null && accessTokenInStorageAfterLock != originalAccessTokenFromRequest) {
+                Log.d(LOG_TAG, LOG_TOKEN_ALREADY_REFRESHED)
                 return response.request.newBuilder()
-                    .header("Authorization", "Bearer $newAccessTokenAfterLock")
+                    .header(AUTHORIZATION, "Bearer $accessTokenInStorageAfterLock")
                     .build()
             }
             
-            // If the access token in storage is STILL the one that failed, proceed with refresh.
-            // This also handles the case where newAccessTokenAfterLock is null, meaning we still need to refresh.
-            
-            Log.d("TokenAuthenticator", "Attempting token refresh.")
-            // 4. Perform the token refresh (synchronously)
+            // If accessTokenInStorageAfterLock is null (tokens were cleared) or still matches the failing one, proceed.
+            Log.d(
+                LOG_TAG,
+                String.format(LOG_ATTEMPTING_TOKEN_REFRESH, currentRefreshToken.takeLast(6))
+            )
             try {
-                // Ensure the refresh token used here is the one we fetched before the lock,
-                // or re-fetch if there's a concern it might have been cleared by another process.
-                // Using currentRefreshToken fetched before the synchronized block is generally fine.
-                val refreshCall = tokenRefreshApiService.get() // Get instance from Lazy
+                // 4. Perform the token refresh (synchronously)
+                val refreshCall = tokenRefreshApiService
                     .refreshAuthToken(RefreshTokenRequest(refreshToken = currentRefreshToken))
                 
-                val refreshAPIResponse = refreshCall.execute() // Synchronous execution
+                val refreshAPIResponse: retrofit2.Response<ApiResponse<RefreshedTokensResponse>>
+                try {
+                    refreshAPIResponse = refreshCall.execute()
+                } catch (e: IOException) {
+                    Log.e(LOG_TAG, String.format(LOG_NETWORK_IO_EXCEPTION, e.message), e)
+                    return null
+                }
                 
-                if (refreshAPIResponse.isSuccessful && refreshAPIResponse.body() != null) {
-                    val newTokens = refreshAPIResponse.body()!!
-                    Log.i("TokenAuthenticator", "Token refresh successful.")
+                if (refreshAPIResponse.isSuccessful) {
+                    val newAPITokens = refreshAPIResponse.body()?.data
+                    if (newAPITokens?.accessToken == null) {
+                        Log.e(LOG_TAG, LOG_RESPONSE_BODY_OR_TOKEN_NULL)
+                        triggerSessionInvalidation(LOG_REFRESH_NO_TOKEN)
+                        runBlocking { tokenManager.clearTokens() } // Clear potentially stale tokens
+                        return null
+                    }
+                    Log.i(LOG_TAG, LOG_REFRESH_SUCCESS)
                     
-                    // Persist new tokens (synchronously or via runBlocking if storage is suspend)
+                    // Persist new tokens
                     runBlocking {
-                        tokenStorage.saveTokens(
+                        tokenManager.saveTokens(
                             AuthTokens(
-                                accessToken = newTokens.accessToken,
+                                accessToken = newAPITokens.accessToken,
                                 // Use new refresh token if provided by API, otherwise keep existing
-                                refreshToken = newTokens.refreshToken ?: currentRefreshToken
+                                refreshToken = newAPITokens.refreshToken ?: currentRefreshToken
                             )
                         )
                     }
                     
                     // 5. Retry the original request with the new token
                     return response.request.newBuilder()
-                        .header("Authorization", "Bearer ${newTokens.accessToken}")
+                        .header(AUTHORIZATION, "Bearer ${newAPITokens.accessToken}")
                         .build()
                 } else {
                     // Refresh failed (e.g., invalid refresh token)
                     Log.e(
-                        "TokenAuthenticator",
-                        "Token refresh failed. Code: ${refreshAPIResponse.code()}, Message: ${refreshAPIResponse.message()}"
+                        LOG_TAG,
+                        String.format(
+                            LOG_REFRESH_FAILED,
+                            refreshAPIResponse.code(),
+                            refreshAPIResponse.message()
+                        )
                     )
-                    if (refreshAPIResponse.code() == 401 || refreshAPIResponse.code() == 403) {
-                        Log.w("TokenAuthenticator", "Refresh token rejected. Clearing tokens.")
-                        runBlocking { tokenStorage.clearTokens() }
-                        // Consider emitting an event for UI to react (e.g., navigate to login)
+                    
+                    if (refreshAPIResponse.code() == 401 || refreshAPIResponse.code() == 403 || refreshAPIResponse.code() == 400) {
+                        Log.w(LOG_TAG, LOG_SERVER_REJECTED)
+                        runBlocking { tokenManager.clearTokens() }
+                        triggerSessionInvalidation(LOG_TOKEN_REJECTED)
                     }
                     
                     return null
                 }
             } catch (e: Exception) {
                 // Network error during refresh or other exception, do not retry request
-                Log.w("TokenAuthenticator", "Refresh token rejected. Clearing tokens.")
+                Log.e(LOG_TAG, String.format(LOG_UNEXPECTED_TOKEN, e.message), e)
+                triggerSessionInvalidation(String.format(LOG_REFRESH_EXCEPTION, e.message))
+                runBlocking { tokenManager.clearTokens() }
                 return null
             }
         }
     }
     
-    private fun triggerSessionInvalidation() {
+    private fun triggerSessionInvalidation(reason: String) {
+        Log.i(LOG_TAG, String.format(LOG_TRIGGER_SESSION_INVALID, reason))
         authenticatorScope.launch {
             try {
                 sessionInvalidator.invalidateSessionAndTriggerLogout()
-                Log.i("TokenAuthenticator", "Session invalidation triggered successfully.")
+                Log.i(LOG_TAG, LOG_SESSION_INVALIDATED)
             } catch (e: Exception) {
-                Log.e(
-                    "TokenAuthenticator",
-                    "Failed to trigger session invalidation: ${e.message}",
-                    e
-                )
-                // Fallback: If sessionInvalidator fails, at least try to clear tokens directly
-                Log.w("TokenAuthenticator", "Fallback: Clearing tokens directly via tokenStorage.")
-                tokenStorage.clearTokens()
+                Log.e(LOG_TAG, String.format(LOG_INVALIDATE_SESSION_FAILED, e.message), e)
+                
+                // Fallback: Cleared tokens directly via tokenManager after session invalidator failure
+                tokenManager.clearTokens()
+                Log.w(LOG_TAG, LOG_FALLBACK_CLEAR)
             }
         }
     }
@@ -147,8 +184,69 @@ class TokenAuthenticator @Inject constructor(
         while (currentResponse.priorResponse != null) {
             currentResponse = currentResponse.priorResponse!!
             result++
+            
+            if (result > MAX_RETRIES + 5) { // Safety break for extreme chains
+                Log.e(LOG_TAG, String.format(LOG_OVER_RETRY_LIMIT, result))
+                return result
+            }
         }
         
         return result
+    }
+    
+    companion object {
+        private const val AUTHORIZATION = "Authorization"
+        private const val BEARER = "Bearer "
+        private const val LOG_TAG = "TokenAuthenticator"
+        
+        // --- Authenticate ---
+        private const val LOG_AUTH_REQUIRED =
+            "Authentication required for: '%s'"
+        private const val LOG_MAX_RETRIES =
+            "Max retries reached for '%s'"
+        private const val LOG_MAX_RETRIES_REACHED =
+            "Max retries reached."
+        private const val LOG_MISSING_ACCESS_TOKEN =
+            "Original request did not contain an access token. Not attempting refresh."
+        private const val LOG_INVALIDATE_SESSION =
+            "No refresh token available. Triggering session invalidation."
+        private const val LOG_MISSING_REFRESH_TOKEN =
+            "No refresh token."
+        private const val LOG_TOKEN_ALREADY_REFRESHED =
+            "Token was already refreshed by another thread. Using new token from storage."
+        private const val LOG_ATTEMPTING_TOKEN_REFRESH =
+            "Attempting token refresh for token ending with: ...'%s'"
+        private const val LOG_NETWORK_IO_EXCEPTION =
+            "Network IOException during token refresh: '%s'"
+        private const val LOG_RESPONSE_BODY_OR_TOKEN_NULL =
+            "Token refresh API call successful but response body or new access token is null."
+        private const val LOG_REFRESH_NO_TOKEN =
+            "Refresh API success but no new token."
+        private const val LOG_REFRESH_SUCCESS =
+            "Token refresh successful."
+        private const val LOG_REFRESH_FAILED =
+            "Token refresh API call failed. Code: '%s', Message: '%s'"
+        private const val LOG_SERVER_REJECTED =
+            "Refresh token rejected by server. Clearing tokens and invalidating session."
+        private const val LOG_TOKEN_REJECTED =
+            "Refresh token rejected."
+        private const val LOG_UNEXPECTED_TOKEN =
+            "Unexpected exception during token refresh attempt: '%s'"
+        private const val LOG_REFRESH_EXCEPTION =
+            "Exception during refresh: '%s'"
+        
+        // --- Trigger Session Invalidation ---
+        private const val LOG_TRIGGER_SESSION_INVALID =
+            "Triggering session invalidation due to: '%s'"
+        private const val LOG_SESSION_INVALIDATED =
+            "Session invalidation process completed."
+        private const val LOG_INVALIDATE_SESSION_FAILED =
+            "Failed to trigger session invalidation: '%s'"
+        private const val LOG_FALLBACK_CLEAR =
+            "Fallback: Cleared tokens directly via tokenManager after session invalidator failure."
+        
+        // --- Response Count ---
+        private const val LOG_OVER_RETRY_LIMIT =
+            "Excessive prior responses, breaking count: '%s'"
     }
 }

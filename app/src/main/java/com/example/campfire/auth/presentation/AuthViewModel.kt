@@ -1,460 +1,549 @@
 package com.example.campfire.auth.presentation
 
-// TODO: Create and import UseCases for VerifyEmail, VerifyPhone
 import android.util.Log
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.campfire.auth.data.remote.AuthApiService
-import com.example.campfire.auth.data.remote.dto.request.VerifyEmailRequest
-import com.example.campfire.auth.data.remote.dto.request.VerifyPhoneRequest
-import com.example.campfire.auth.domain.repository.LoginResult
-import com.example.campfire.auth.domain.repository.RegisterResult
-import com.example.campfire.auth.domain.usecase.LoginUserUseCase
-import com.example.campfire.auth.domain.usecase.RegisterUserUseCase
-import com.example.campfire.auth.presentation.AuthViewModel.RegistrationField
+import com.example.campfire.R
+import com.example.campfire.auth.domain.repository.CompleteProfileResult
+import com.example.campfire.auth.domain.repository.Field
+import com.example.campfire.auth.domain.repository.SendOTPResult
+import com.example.campfire.auth.domain.repository.VerifyOTPResult
+import com.example.campfire.auth.domain.usecase.CompleteProfileUseCase
+import com.example.campfire.auth.domain.usecase.SendOTPUseCase
+import com.example.campfire.auth.domain.usecase.VerifyOTPUseCase
+import com.example.campfire.auth.presentation.navigation.AuthAction
+import com.example.campfire.core.domain.model.PhoneNumber
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.util.Locale
 import javax.inject.Inject
 
 
-data class RegistrationUIState(
+data class SendOTPUIState(
+    val selectedRegionCode: String = "", // e.g., "US", "GB" - Represents the selected country
+    // JD TODO: Change +1 default to default to the cc of phone location
+    val displayCountryDialCode: String = "+1", // e.g., "+1", "+44" - For display in the UI
+    val nationalNumberInput: TextFieldValue = TextFieldValue(""), // The number part input by the user
     val isLoading: Boolean = false,
-    val registrationResult: RegisterResult? = null,
-    val errorMessage: String? = null, // For general errors not tied to a specific result
-    val fieldErrors: Map<RegistrationField, String?> = emptyMap()
+    val sendOTPResult: SendOTPResult? = null,
+    val parsedPhoneNumber: PhoneNumber? = null, // Store the validated PhoneNumber
+    val validationError: String? = null // For input validation errors before trying to send OTP
 )
 
-data class LoginUIState(
+data class VerifyOTPUIState(
+    val otpCode: TextFieldValue = TextFieldValue(""),
     val isLoading: Boolean = false,
-    val loginResult: LoginResult? = null,
-    val errorMessage: String? = null // For dialog/general errors
+    val verifyOTPResult: VerifyOTPResult? = null,
+    val errorMessage: String? = null
+)
+
+data class CompleteProfileUIState(
+    val isLoading: Boolean = false,
+    val completeProfileResult: CompleteProfileResult? = null,
+    val fieldErrors: Map<Field, String> = emptyMap(),
+    // Profile fields
+    val firstName: TextFieldValue = TextFieldValue(""),
+    val lastName: TextFieldValue = TextFieldValue(""),
+    val email: TextFieldValue = TextFieldValue(""),
+    val dateOfBirth: LocalDate? = null,
+    val dateOfBirthInput: TextFieldValue = TextFieldValue(""),
+    val enableNotifications: Boolean = true
 )
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val loginUserUseCase: LoginUserUseCase,
-    private val apiService: AuthApiService, // TODO: Replace direct ApiService usage with UseCases
-    // TODO: Inject VerifyEmailUseCase, VerifyPhoneUseCase
-    private val registerUserUseCase: RegisterUserUseCase
-) : ViewModel() {
+    private val sendOTPUseCase: SendOTPUseCase,
+    private val verifyOTPUseCase: VerifyOTPUseCase,
+    private val completeProfileUseCase: CompleteProfileUseCase
+) : ViewModel(), AuthContract {
     
-    // --- UI State ---
-    private val _email = mutableStateOf(TextFieldValue(""))
-    val email: State<TextFieldValue> = _email
+    private val _sendOTPUIState = MutableStateFlow(SendOTPUIState())
+    override val sendOTPUIState: StateFlow<SendOTPUIState> = _sendOTPUIState.asStateFlow()
     
-    private val _phone = mutableStateOf(TextFieldValue(""))
-    val phone: State<TextFieldValue> = _phone
+    private val _verifyOTPUIState = MutableStateFlow(VerifyOTPUIState())
+    override val verifyOTPUIState: StateFlow<VerifyOTPUIState> = _verifyOTPUIState.asStateFlow()
     
-    private val _password = mutableStateOf(TextFieldValue(""))
-    val password: State<TextFieldValue> = _password
+    private val _completeProfileUIState = MutableStateFlow(CompleteProfileUIState())
+    override val completeProfileUIState: StateFlow<CompleteProfileUIState> =
+        _completeProfileUIState.asStateFlow()
     
-    private val _confirmPassword = mutableStateOf(TextFieldValue(""))
-    val confirmPassword: State<TextFieldValue> = _confirmPassword
+    private val _phoneNumberForVerification = MutableStateFlow<String?>(null)
+    override val currentPhoneNumberForVerification: StateFlow<String?>
+        get() = _phoneNumberForVerification.asStateFlow()
     
-    private val _emailCode = mutableStateOf(TextFieldValue(""))
-    val emailCode: State<TextFieldValue> = _emailCode
+    private val _userMessageChannel = Channel<UserMessage>(Channel.BUFFERED)
+    override val userMessages: Flow<UserMessage> = _userMessageChannel.receiveAsFlow()
     
-    private val _phoneCode = mutableStateOf(TextFieldValue(""))
-    val phoneCode: State<TextFieldValue> = _phoneCode
+    private val _authNavigationEventChannel = Channel<AuthNavigationEvent>(Channel.BUFFERED)
+    override val authNavigationEvents: Flow<AuthNavigationEvent> =
+        _authNavigationEventChannel.receiveAsFlow()
     
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
+    private var currentAuthActionInternal: AuthAction = AuthAction.LOGIN
+    private var currentFullPhoneNumberTarget: String? = null
     
-    private val _registrationUIState = MutableStateFlow(RegistrationUIState())
-    val registrationUIState: StateFlow<RegistrationUIState> = _registrationUIState.asStateFlow()
-    
-    private val _loginUIState = MutableStateFlow(LoginUIState())
-    val loginUIState: StateFlow<LoginUIState> = _loginUIState.asStateFlow()
-    
-    private val _registrationFieldErrors =
-        mutableStateOf<Map<RegistrationField, String?>>(emptyMap())
-    val registrationFieldErrors: State<Map<RegistrationField, String?>> = _registrationFieldErrors
-    
-    private val _isLoading = MutableStateFlow<Boolean>(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-    
-    private val _isPasswordVisible = mutableStateOf(false)
-    val isPasswordVisible: State<Boolean> = _isPasswordVisible
-    
-    enum class RegistrationField {
-        EMAIL, PHONE, PASSWORD, CONFIRM_PASSWORD, GENERAL
-    }
-    
-    // --- Update Functions for UI State ---
-    fun updateEmail(value: TextFieldValue) {
-        _email.value = value
-        clearFieldError(RegistrationField.EMAIL)
-    }
-    
-    fun updatePhone(value: TextFieldValue) {
-        _phone.value = value
-        clearFieldError(RegistrationField.PHONE)
-    }
-    
-    fun updatePassword(value: TextFieldValue) {
-        _password.value = value
-        clearFieldError(RegistrationField.PASSWORD)
-        if (_confirmPassword.value.text.isNotEmpty()) {
-            clearFieldError(RegistrationField.CONFIRM_PASSWORD)
+    init {
+        // Set initial default country code
+        val defaultRegion = Locale.getDefault().country
+        if (defaultRegion.isNotBlank()) {
+            onRegionSelected(defaultRegion)
+        } else {
+            onRegionSelected("US")
         }
     }
     
-    fun updateConfirmPassword(value: TextFieldValue) {
-        _confirmPassword.value = value
-        clearFieldError(RegistrationField.CONFIRM_PASSWORD)
-    }
-    
-    fun updateEmailCode(value: TextFieldValue) {
-        _emailCode.value = value
-    }
-    
-    fun updatePhoneCode(value: TextFieldValue) {
-        _phoneCode.value = value
-    }
-    
-    fun togglePasswordVisibility() {
-        _isPasswordVisible.value = !_isPasswordVisible.value
-    }
-    
-    
-    // --- Action Methods ---
-    
-    fun loginUser() {
-        if (email.value.text.isBlank() || password.value.text.isBlank()) {
-            _message.value = "Email and password cannot be empty."
-            return // Exit if basic validation fails
+    override fun onRegionSelected(regionCode: String) {
+        val dialCode = PhoneNumber.getDialingCodeForRegion(regionCode)
+        if (dialCode != 0) {
+            _sendOTPUIState.update {
+                it.copy(
+                    selectedRegionCode = regionCode.uppercase(Locale.ROOT),
+                    displayCountryDialCode = "+$dialCode",
+                    validationError = null,
+                    sendOTPResult = null
+                )
+            }
+        } else {
+            _sendOTPUIState.update {
+                it.copy(
+                    validationError = "Could not set country code for $regionCode"
+                )
+            }
+            Log.w(LOG_TAG, "Could not get dial code for region: $regionCode")
         }
-        
-        viewModelScope.launch {
-            _isLoading.value = true
-            _message.value = null
-            
-            Log.d("AuthViewModel", "Attempting login for: ${email.value.text}")
-            val result = loginUserUseCase.invoke(
-                email = email.value.text.trim(),
-                password = password.value.text
+    }
+    
+    override fun onNationalNumberInputValueChanged(newNationalNumber: TextFieldValue) {
+        _sendOTPUIState.update {
+            it.copy(
+                nationalNumberInput = newNationalNumber,
+                validationError = null,
+                sendOTPResult = null
             )
-            
-            when (result) {
-                is LoginResult.Success -> {
-                    Log.d(
-                        "AuthViewModel",
-                        "Login Successful. Access Token: ${result.tokens.accessToken}"
-                    )
-                    // Message can be null or a success message if desired
-                    _message.value = "Login successful!" // Optional success message
-                }
-                
-                is LoginResult.InvalidCredentialsError -> {
-                    _message.value = "Incorrect email or password."
-                    Log.w(
-                        "AuthViewModel",
-                        "Login Failed: Invalid Credentials for ${email.value.text}"
-                    )
-                }
-                
-                is LoginResult.UserInactiveError -> {
-                    _message.value = "This user account is inactive."
-                    Log.w("AuthViewModel", "Login Failed: User Inactive for ${email.value.text}")
-                }
-                
-                is LoginResult.NetworkError -> {
-                    _message.value = result.message ?: "A network error occurred."
-                    Log.e("AuthViewModel", "Login Network Error: ${result.message}")
-                }
-                
-                is LoginResult.GenericError -> {
-                    _message.value = result.message ?: "An unexpected error occurred."
-                    Log.e(
-                        "AuthViewModel",
-                        "Login Generic Error - Message: ${result.message}"
-                    )
-                }
+        }
+    }
+    
+    /**
+     * Sets the operational context for authentication actions (sending or verifying OTP).
+     * This should be called when the relevant screen (EnterPhoneNumberScreen or VerifyOTPScreen)
+     * is initialized or its key arguments (action, phoneNumber) change.
+     *
+     * @param action The current authentication action (LOGIN, REGISTER).
+     * @param phoneNumberE164 The phone number associated with the current action.
+     * @param isNewContext If true, implies a full reset of related UI states.
+     */
+    override fun setAuthOperationContext(
+        action: AuthAction,
+        phoneNumberE164: String?,
+        isNewContext: Boolean
+    ) {
+        currentAuthActionInternal = action
+        currentFullPhoneNumberTarget = phoneNumberE164
+        _phoneNumberForVerification.value = phoneNumberE164
+        
+        if (isNewContext) {
+            val initialPhoneNumber = if (!phoneNumberE164.isNullOrBlank()) {
+                PhoneNumber.fromE164(phoneNumberE164)
+            } else {
+                null
             }
             
-            _isLoading.value = false
+            val defaultDeviceRegion = Locale.getDefault().country.takeIf { it.isNotBlank() } ?: "US"
+            val region = initialPhoneNumber?.regionCode ?: defaultDeviceRegion
+            val dialCode = PhoneNumber.getDialingCodeForRegion(region)
+            
+            _sendOTPUIState.value = SendOTPUIState(
+                selectedRegionCode = region,
+                displayCountryDialCode = if (dialCode != 0) "+$dialCode" else PhoneNumber.getDialingCodeForRegion(
+                    "US"
+                ).let { "+$it" },
+                nationalNumberInput = TextFieldValue(
+                    initialPhoneNumber?.nationalNumber?.toString() ?: ""
+                ),
+                parsedPhoneNumber = initialPhoneNumber,
+                isLoading = false,
+                sendOTPResult = null,
+                validationError = null
+            )
+            
+            _verifyOTPUIState.value = VerifyOTPUIState()
         }
     }
     
-    fun registerUser() {
-        if (!validateRegistrationInput()) {
-            _registrationUIState.update {
+    // --- Send OTP ---
+    override fun attemptSendOTP() {
+        val currentState = _sendOTPUIState.value
+        val countryDialCodeNumeric = currentState.displayCountryDialCode.filter { it.isDigit() }
+        val nationalNum = currentState.nationalNumberInput.text
+        
+        if (currentState.selectedRegionCode.isBlank() || countryDialCodeNumeric.isBlank()) {
+            _sendOTPUIState.update { it.copy(validationError = "Please select a country code.") }
+            return
+        }
+        if (nationalNum.isBlank()) {
+            _sendOTPUIState.update { it.copy(validationError = "Please enter your phone number.") }
+            return
+        }
+        
+        val constructedPhoneNumber = PhoneNumber.fromCountryCodeAndNationalNumber(
+            countryCodeString = countryDialCodeNumeric,
+            nationalNumberString = nationalNum
+        )
+        
+        if (!constructedPhoneNumber.isValid) {
+            _sendOTPUIState.update {
                 it.copy(
-                    isLoading = false,
+                    validationError = "The phone number entered is not valid.",
+                    parsedPhoneNumber = constructedPhoneNumber
                 )
             }
             return
         }
         
-        _registrationUIState.update {
+        // Number is valid according to libphonenumber, proceed to send OTP
+        _sendOTPUIState.update {
             it.copy(
                 isLoading = true,
-                registrationResult = null,
-                errorMessage = null,
+                validationError = null,
+                parsedPhoneNumber = constructedPhoneNumber,
+                sendOTPResult = null
+            )
+        }
+        
+        val e164NumberToSend = constructedPhoneNumber.e164Format!!
+        currentFullPhoneNumberTarget = e164NumberToSend
+        _phoneNumberForVerification.value = e164NumberToSend
+        
+        viewModelScope.launch {
+            val result = sendOTPUseCase(
+                phoneNumber = constructedPhoneNumber.e164Format!!,
+                authAction = currentAuthActionInternal
+            )
+            _sendOTPUIState.update { it.copy(isLoading = false, sendOTPResult = result) }
+            
+            if (result is SendOTPResult.Success) {
+                val numberSentTo = currentFullPhoneNumberTarget
+                if (numberSentTo != null) {
+                    Log.d(LOG_TAG, "OTP Sent successfully to $numberSentTo, navigating.")
+                    _authNavigationEventChannel.send(
+                        AuthNavigationEvent.ToOTPVerifiedScreen(
+                            phoneNumber = numberSentTo,
+                            originatingAction = currentAuthActionInternal
+                        )
+                    )
+                } else {
+                    Log.e(LOG_TAG, "OTP Sent but currentFullPhoneNumberTarget is null.")
+                }
+            }
+        }
+    }
+    
+    override fun clearSendOTPResult() {
+        _sendOTPUIState.update { it.copy(sendOTPResult = null) }
+    }
+    
+    // --- Verify OTP ---
+    override fun onOTPCodeChanged(newCode: TextFieldValue) {
+        if (newCode.text.length <= 6 && newCode.text.all { it.isDigit() }) {
+            _verifyOTPUIState.update {
+                it.copy(otpCode = newCode, verifyOTPResult = null)
+            }
+        }
+    }
+    
+    override fun verifyOTP() {
+        val otpCode = _verifyOTPUIState.value.otpCode.text
+        val phoneToVerify = currentFullPhoneNumberTarget
+        
+        if (phoneToVerify == null) {
+            Log.e(
+                "AuthViewModel",
+                "verifyOTP: currentFullPhoneNumberTarget is null. Cannot proceed."
+            )
+            viewModelScope.launch { _userMessageChannel.send(UserMessage.Snackbar(R.string.error_phone_invalid_generic)) }
+            return
+        }
+        
+        val action = currentAuthActionInternal
+        
+        viewModelScope.launch {
+            _verifyOTPUIState.update { it.copy(isLoading = true, verifyOTPResult = null) }
+            val result =
+                verifyOTPUseCase(
+                    phoneNumber = phoneToVerify,
+                    otpCode = otpCode,
+                    authAction = action
+                )
+            _verifyOTPUIState.update { it.copy(isLoading = false, verifyOTPResult = result) }
+            
+            when (result) {
+                is VerifyOTPResult.SuccessLogin -> {
+                    _userMessageChannel.send(UserMessage.Toast(R.string.login_successful))
+                    _authNavigationEventChannel.send(AuthNavigationEvent.ToMainApp)
+                }
+                
+                is VerifyOTPResult.SuccessRegistration -> {
+                    _userMessageChannel.send(UserMessage.Toast(R.string.otp_verified_proceed_profile))
+                    _authNavigationEventChannel.send(AuthNavigationEvent.ToProfileCompletion)
+                }
+                
+                is VerifyOTPResult.SuccessButUserExistedDuringRegistration -> {
+                    _userMessageChannel.send(UserMessage.ToastString("Welcome back! Logged you in."))
+                    _authNavigationEventChannel.send(AuthNavigationEvent.ToMainApp)
+                }
+                
+                // Handle errors
+                is VerifyOTPResult.OTPIncorrect -> _userMessageChannel.send(UserMessage.Snackbar(R.string.error_otp_incorrect))
+                is VerifyOTPResult.OTPExpired -> _userMessageChannel.send(UserMessage.Snackbar(R.string.error_otp_expired))
+                is VerifyOTPResult.RateLimited -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_RATE_LIMITED_VERIFYING_OTP
+                    )
+                )
+                
+                is VerifyOTPResult.Network -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_NETWORK_VERIFY_OTP
+                    )
+                )
+                
+                is VerifyOTPResult.Generic -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_GENERIC
+                    )
+                )
+            }
+        }
+    }
+    
+    override fun resendOTP() {
+        val phoneToResend = currentFullPhoneNumberTarget
+        
+        if (phoneToResend == null) {
+            Log.e(LOG_TAG, "resendOTP: currentFullPhoneNumberTarget is null. Cannot proceed.")
+            viewModelScope.launch { _userMessageChannel.send(UserMessage.Snackbar(R.string.error_phone_invalid_generic)) }
+            return
+        }
+        
+        val action = currentAuthActionInternal
+        
+        viewModelScope.launch {
+            _sendOTPUIState.update { it.copy(isLoading = true, sendOTPResult = null) }
+            val result = sendOTPUseCase(phoneToResend, action)
+            _sendOTPUIState.update { it.copy(isLoading = false, sendOTPResult = result) }
+            
+            when (result) {
+                is SendOTPResult.Success -> {}
+                is SendOTPResult.InvalidPhoneNumber -> _userMessageChannel.send(
+                    UserMessage.Snackbar(
+                        R.string.error_phone_invalid_generic
+                    )
+                )
+                
+                is SendOTPResult.RateLimited -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_RATE_LIMITED_SENDING_OTP
+                    )
+                )
+                
+                is SendOTPResult.UserAlreadyExists -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_PHONE_NUMBER_REGISTERED
+                    )
+                )
+                
+                is SendOTPResult.UserNotFound -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_PHONE_NUMBER_NOT_FOUND
+                    )
+                )
+                
+                is SendOTPResult.Network -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_NETWORK_SEND_OTP
+                    )
+                )
+                
+                is SendOTPResult.Generic -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_GENERIC
+                    )
+                )
+            }
+        }
+        
+        _verifyOTPUIState.update { it.copy(verifyOTPResult = null, otpCode = TextFieldValue("")) }
+    }
+    
+    override fun clearVerifyOTPResult() {
+        _verifyOTPUIState.update { it.copy(verifyOTPResult = null, errorMessage = null) }
+    }
+    
+    // --- Complete Profile---
+    override fun onFirstNameChanged(newName: TextFieldValue) {
+        _completeProfileUIState.update {
+            it.copy(firstName = newName, fieldErrors = it.fieldErrors - Field.FIRST_NAME)
+        }
+    }
+    
+    override fun onLastNameChanged(newName: TextFieldValue) {
+        _completeProfileUIState.update {
+            it.copy(lastName = newName, fieldErrors = it.fieldErrors - Field.LAST_NAME)
+        }
+    }
+    
+    override fun onEmailChanged(newEmail: TextFieldValue) {
+        _completeProfileUIState.update {
+            it.copy(email = newEmail, fieldErrors = it.fieldErrors - Field.EMAIL)
+        }
+    }
+    
+    override fun onDateOfBirthInputChanged(newDobInput: TextFieldValue) {
+        _completeProfileUIState.update {
+            val dob = try {
+                LocalDate.parse(newDobInput.text, DateTimeFormatter.ISO_LOCAL_DATE)
+            } catch (e: DateTimeParseException) {
+                null
+            }
+            it.copy(
+                dateOfBirthInput = newDobInput,
+                dateOfBirth = dob,
+                fieldErrors = it.fieldErrors - Field.DATE_OF_BIRTH
+            )
+        }
+    }
+    
+    override fun onEnableNotificationsChanged(enabled: Boolean) {
+        _completeProfileUIState.update { it.copy(enableNotifications = enabled) }
+    }
+    
+    override fun completeUserProfile() {
+        val uiState = _completeProfileUIState.value
+        // Basic validation, enhance as needed
+        val fieldErrors = mutableMapOf<Field, String>()
+        if (uiState.firstName.text.isBlank()) fieldErrors[Field.FIRST_NAME] =
+            ERROR_FIRST_NAME_MISSING
+        if (uiState.lastName.text.isBlank()) fieldErrors[Field.LAST_NAME] =
+            ERROR_LAST_NAME_MISSING // Add similar constants
+        if (uiState.email.text.isBlank()) fieldErrors[Field.EMAIL] =
+            ERROR_EMAIL_MISSING // Add similar constants
+        if (uiState.dateOfBirth == null && uiState.dateOfBirthInput.text.isNotBlank()) { // If input exists but couldn't parse
+            fieldErrors[Field.DATE_OF_BIRTH] = ERROR_DOB_INVALID
+        } else if (uiState.dateOfBirth == null) {
+            fieldErrors[Field.DATE_OF_BIRTH] = ERROR_DOB_MISSING
+        }
+        
+        
+        if (fieldErrors.isNotEmpty()) {
+            _completeProfileUIState.update { it.copy(fieldErrors = fieldErrors) }
+            viewModelScope.launch { _userMessageChannel.send(UserMessage.Snackbar(R.string.error_validation_check_fields)) }
+            return
+        }
+        
+        viewModelScope.launch {
+            _completeProfileUIState.update {
+                it.copy(
+                    isLoading = true,
+                    completeProfileResult = null,
+                    fieldErrors = emptyMap()
+                )
+            }
+            val result = completeProfileUseCase(
+                firstName = uiState.firstName.text.trim(),
+                lastName = uiState.lastName.text.trim(),
+                email = uiState.email.text.trim(),
+                dateOfBirth = uiState.dateOfBirth,
+                enableNotifications = uiState.enableNotifications
+            )
+            _completeProfileUIState.update { currentState ->
+                currentState.copy(
+                    isLoading = false,
+                    completeProfileResult = result,
+                    fieldErrors = (result as? CompleteProfileResult.Validation)?.errors
+                        ?: emptyMap()
+                )
+            }
+            
+            when (result) {
+                is CompleteProfileResult.Success -> {
+                    _userMessageChannel.send(UserMessage.Toast(R.string.profile_completed_success))
+                    _authNavigationEventChannel.send(AuthNavigationEvent.ToMainApp)
+                }
+                
+                is CompleteProfileResult.Validation -> {
+                    _userMessageChannel.send(UserMessage.Snackbar(R.string.error_validation_check_fields))
+                }
+                
+                is CompleteProfileResult.EmailAlreadyExists -> _userMessageChannel.send(
+                    UserMessage.Snackbar(
+                        R.string.error_email_already_exists
+                    )
+                )
+                
+                is CompleteProfileResult.Network -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_NETWORK_COMPLETE_PROFILE
+                    )
+                )
+                
+                is CompleteProfileResult.Generic -> _userMessageChannel.send(
+                    UserMessage.SnackbarString(
+                        result.message ?: ERROR_COMPLETE_PROFILE_GENERIC
+                    )
+                )
+            }
+        }
+    }
+    
+    override fun clearCompleteProfileResult() {
+        _completeProfileUIState.update {
+            it.copy(
+                completeProfileResult = null,
                 fieldErrors = emptyMap()
             )
         }
-        
-        _registrationFieldErrors.value = emptyMap()
-        _message.value = null
-        
-        viewModelScope.launch {
-            Log.d("AuthViewModel", "Attempting registration via UseCase for: ${email.value.text}")
-            
-            // Use the RegisterUserUseCase
-            val result = registerUserUseCase.invoke(
-                email = email.value.text.trim(),
-                phone = phone.value.text.trim(),
-                password = password.value.text
-            )
-            
-            _registrationUIState.update { currentState ->
-                when (result) {
-                    is RegisterResult.Success -> {
-                        _message.value = result.message
-                        currentState.copy(
-                            isLoading = false,
-                            registrationResult = result,
-                            fieldErrors = emptyMap() // Ensure errors are cleared
-                        )
-                    }
-                    
-                    is RegisterResult.EmailAlreadyExistsError -> {
-                        _registrationFieldErrors.value = mapOf(
-                            RegistrationField.EMAIL to (result.message ?: "Email already exists.")
-                        )
-                        _message.value = "Registration failed."
-                        currentState.copy(
-                            isLoading = false,
-                            registrationResult = result,
-                            fieldErrors = emptyMap() // Ensure errors are cleared
-                        )
-                    }
-                    
-                    is RegisterResult.WeakPasswordError -> {
-                        _registrationFieldErrors.value = mapOf(
-                            RegistrationField.PASSWORD to (result.message
-                                ?: "Password is too weak.")
-                        )
-                        _message.value = "Registration failed."
-                        currentState.copy(
-                            isLoading = false,
-                            registrationResult = result,
-                            fieldErrors = emptyMap() // Ensure errors are cleared
-                        )
-                    }
-                    
-                    is RegisterResult.NetworkError, is RegisterResult.GenericError -> {
-                        // JD TODO: Do I want this message for a network error?
-                        // _message.value = result.message ?: "An error occurred."
-                        currentState.copy(
-                            isLoading = false,
-                            registrationResult = result, // Store the result
-                            // If it's a GenericError that implies a field issue (though unlikely for GENERIC):
-                            // fieldErrors = if (result is RegisterResult.GenericError) mapOf(RegistrationField.GENERAL to (result.message ?: "Error")) else currentState.fieldErrors
-                            //errorMessage = result.message ?: "An error occurred." // More prominent general error
-                        )
-                    }
-                    // JD TODO: Handle any other specific RegisterResult types I create
-                }
-            }
-            
-            _isLoading.value = false
-        }
     }
     
-    private fun validateRegistrationInput(): Boolean {
-        val errors = mutableMapOf<RegistrationField, String?>()
-        
-        // Email Validation
-        if (email.value.text.isBlank()) {
-            errors[RegistrationField.EMAIL] = "Email cannot be empty."
-        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.value.text.trim())
-                .matches()
-        ) {
-            errors[RegistrationField.EMAIL] = "Invalid email format."
-        }
-        
-        // Phone Validation
-        if (phone.value.text.isBlank()) {
-            errors[RegistrationField.PHONE] = "Phone number cannot be empty."
-        } else if (phone.value.text.trim().length < 7) { // Example: Basic length check
-            errors[RegistrationField.PHONE] = "Invalid phone number format (too short)."
-        }
-        // TODO: Add more robust phone validation (e.g., using libphonenumber)
-        
-        // Password Validation
-        if (password.value.text.isBlank()) {
-            errors[RegistrationField.PASSWORD] = "Password cannot be empty."
-        } else if (password.value.text.length < 8) {
-            errors[RegistrationField.PASSWORD] = "Password must be at least 8 characters."
-        }
-        // TODO: Add other password strength rules (e.g., uppercase, number, special character)
-        
-        // Confirm Password Validation
-        if (confirmPassword.value.text.isBlank()) {
-            errors[RegistrationField.CONFIRM_PASSWORD] = "Please confirm your password."
-        } else if (password.value.text.isNotBlank() && password.value.text != confirmPassword.value.text) {
-            errors[RegistrationField.CONFIRM_PASSWORD] = "Passwords do not match."
-        }
-        
-        return if (errors.any { it.value != null }) {
-            _registrationFieldErrors.value = errors
-            _message.value =
-                "Please correct the errors above." // General prompt if there are field errors
-            false
-        } else {
-            _registrationFieldErrors.value = emptyMap()
-            _message.value = null // Clear general prompt if all valid
-            true
-        }
-    }
-    
-    
-    fun verifyEmail(onResult: (success: Boolean, requiresPhoneVerification: Boolean) -> Unit) {
-        // TODO: Ideally, this should use a VerifyEmailUseCase
-        viewModelScope.launch {
-            _isLoading.value = true
-            _message.value = null
-            var wasSuccessful = false
-            var needsPhoneVerification = false // Determine this based on API or logic
-            
-            Log.d(
-                "AuthViewModel",
-                "Attempting email verification for: ${email.value.text} with code: ${emailCode.value.text}"
-            )
-            try {
-                // TODO: Replace with VerifyEmailUseCase
-                val request =
-                    VerifyEmailRequest(email.value.text.trim(), emailCode.value.text.trim())
-                val response = apiService.verifyEmail(request).execute()
-                
-                if (response.isSuccessful && response.body() != null) {
-                    _message.value =
-                        response.body()?.data?.message ?: "Email verification successful!"
-                    wasSuccessful = true
-                    // JD TODO: Implement with email verification
-                    //needsPhoneVerification = response.body()?.data?.requiresPhoneVerification ?: false
-                    Log.i("AuthViewModel", "Email Verification Successful for ${email.value.text}")
-                } else {
-                    val errorBody = response.errorBody()?.string()
-                    // TODO: Map errorBody to specific error messages for the code field if possible
-                    _message.value = "Verify Email failed: ${errorBody ?: "Unknown error"}"
-                    Log.w(
-                        "AuthViewModel",
-                        "Email Verification Failed: ${response.code()} - $errorBody"
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e("AuthViewModel", "VerifyEmail exception", e)
-                _message.value = "Error during email verification: ${e.message}"
-            } finally {
-                _isLoading.value = false
-                onResult(wasSuccessful, needsPhoneVerification)
-            }
-        }
-    }
-    
-    fun verifyPhone(onResult: (success: Boolean) -> Unit) {
-        // TODO: Ideally, this should use a VerifyPhoneUseCase
-        viewModelScope.launch {
-            _isLoading.value = true
-            _message.value = null
-            var wasSuccessful = false
-            
-            Log.d(
-                "AuthViewModel",
-                "Attempting phone verification for: ${phone.value.text} with code: ${phoneCode.value.text}"
-            )
-            try {
-                // TODO: Replace with VerifyPhoneUseCase
-                val request =
-                    VerifyPhoneRequest(phone.value.text.trim(), phoneCode.value.text.trim())
-                val response = apiService.verifyPhone(request).execute()
-                
-                if (response.isSuccessful && response.body() != null) {
-                    _message.value =
-                        response.body()?.data?.message ?: "Phone verification successful!"
-                    wasSuccessful = true
-                    Log.i("AuthViewModel", "Phone Verification Successful for ${phone.value.text}")
-                } else {
-                    val errorBody = response.errorBody()?.string()
-                    // TODO: Map errorBody to specific error messages for the code field if possible
-                    _message.value = "Verify Phone failed: ${errorBody ?: "Unknown error"}"
-                    Log.w(
-                        "AuthViewModel",
-                        "Phone Verification Failed: ${response.code()} - $errorBody"
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e("AuthViewModel", "VerifyPhone exception", e)
-                _message.value = "Error during phone verification: ${e.message}"
-            } finally {
-                _isLoading.value = false
-                onResult(wasSuccessful)
-            }
-        }
-    }
-    
-    // --- Helper Functions ---
-    private fun clearFieldError(field: RegistrationField) {
-        if (_registrationFieldErrors.value.containsKey(field)) {
-            _registrationFieldErrors.value = _registrationFieldErrors.value.toMutableMap().apply {
-                remove(field)
-            }
-        }
-        
-        // If all field errors are cleared, also clear the general "Please correct..." message
-        if (_registrationFieldErrors.value.values.all { it == null }) {
-            if (_message.value == "Please correct the errors above.") {
-                _message.value = null
-            }
-        }
-    }
-    
-    fun clearMessage() {
-        _message.value = null
-    }
-    
-    fun clearRegistrationState() {
-        _registrationFieldErrors.value = emptyMap()
-        _confirmPassword.value = TextFieldValue("")
-    }
-    
-    fun resetAllInputFieldsAndErrors() {
-        _email.value = TextFieldValue("")
-        _phone.value = TextFieldValue("")
-        _password.value = TextFieldValue("")
-        _confirmPassword.value = TextFieldValue("")
-        _emailCode.value = TextFieldValue("")
-        _phoneCode.value = TextFieldValue("")
-        _isPasswordVisible.value = false
-        _registrationFieldErrors.value = emptyMap()
-        _message.value = null
-    }
-    
-    @Suppress("unused")
-    fun updateIsLoading(value: Boolean) {
-        _isLoading.value = value
-    }
-    
-    fun clearRegistrationResult() {
-        _registrationUIState.update { it.copy(registrationResult = null, errorMessage = null) }
-    }
-    
-    fun clearLoginResult() {
-        _loginUIState.update { it.copy(loginResult = null, errorMessage = null) }
-    }
-    
-    fun clearErrorMessage() {
-        _registrationUIState.update { it.copy(errorMessage = null) }
-        _loginUIState.update { it.copy(errorMessage = null) }
+    companion object {
+        private const val LOG_TAG =
+            "AuthViewModel"
+        private const val ERROR_RATE_LIMITED_SENDING_OTP =
+            "Rate limited for sending OTP."
+        private const val ERROR_RATE_LIMITED_VERIFYING_OTP =
+            "Rate limited for verifying OTP."
+        private const val ERROR_PHONE_NUMBER_REGISTERED =
+            "This phone number is already registered."
+        private const val ERROR_PHONE_NUMBER_NOT_FOUND =
+            "This phone number is not found for login."
+        private const val ERROR_NETWORK_SEND_OTP =
+            "Network error sending OTP."
+        private const val ERROR_NETWORK_VERIFY_OTP =
+            "Network error verifying OTP."
+        private const val ERROR_NETWORK_COMPLETE_PROFILE =
+            "Network error completing profile."
+        private const val ERROR_GENERIC =
+            "Could not send OTP."
+        private const val ERROR_FIRST_NAME_MISSING =
+            "First name required."
+        private const val ERROR_LAST_NAME_MISSING =
+            "Last name required."
+        private const val ERROR_EMAIL_MISSING =
+            "Email required."
+        private const val ERROR_DOB_MISSING =
+            "Date of birth required."
+        private const val ERROR_DOB_INVALID =
+            "Date of birth is invalid."
+        private const val ERROR_COMPLETE_PROFILE_GENERIC =
+            "Could not complete profile."
     }
 }

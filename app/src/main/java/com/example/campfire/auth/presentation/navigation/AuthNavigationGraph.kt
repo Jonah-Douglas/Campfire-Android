@@ -1,97 +1,114 @@
 package com.example.campfire.auth.presentation.navigation
 
+import android.util.Log
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import com.example.campfire.auth.presentation.AuthViewModel
+import com.example.campfire.auth.presentation.screens.EnterPhoneNumberScreen
 import com.example.campfire.auth.presentation.screens.EntryScreen
-import com.example.campfire.auth.presentation.screens.LoginScreen
-import com.example.campfire.auth.presentation.screens.RegisterScreen
-import com.example.campfire.core.presentation.navigation.AppGraphRoutes
+import com.example.campfire.auth.presentation.screens.VerifyOTPScreen
 
 
 fun NavGraphBuilder.authGraph(
     navController: NavHostController,
-    onAuthSuccessNavigation: () -> Unit,
-    onEntryScreenComplete: () -> Unit
 ) {
     composable(AuthScreen.Entry.route) {
         EntryScreen(
-            onNavigateToLogin = {
-                onEntryScreenComplete()
-                navController.navigate(AuthScreen.Login.route) {
-                    // Prevent swiping back to Entry from Login
-                    popUpTo(AuthScreen.Entry.route) { inclusive = true }
-                }
-            },
-            onNavigateToRegister = {
-                onEntryScreenComplete()
-                navController.navigate(AuthScreen.Register.route) {
-                    // Prevent swiping back to Entry from Login
-                    popUpTo(AuthScreen.Entry.route) { inclusive = true }
-                }
+            onNavigateToEnterPhoneNumber = { authAction ->
+                navController.navigate(AuthScreen.EnterPhoneNumber.createRoute(authAction)) { }
             }
         )
     }
-    composable(AuthScreen.Login.route) {
-        LoginScreen(
-            onLoginSuccess = { requiresEmailVerification ->
-                if (requiresEmailVerification) {
-                    navController.navigate(AuthScreen.EmailVerification.route) {
-                        popUpTo(AuthScreen.Login.route) { inclusive = true }
-                    }
-                } else {
-                    onAuthSuccessNavigation()
-                }
-            },
-            onNavigateToRegister = {
-                navController.navigate(AuthScreen.Register.route) {
-                    // When going from Login to Register, pop Login so back goes to Entry
-                    popUpTo(AuthScreen.Login.route) { inclusive = true }
-                }
-            },
-            onNavigateBackToEntry = {
-                navController.navigate(AuthScreen.Entry.route) {
-                    // Pop Login from the back stack when going back to Entry
-                    popUpTo(AuthScreen.Login.route) { inclusive = true }
-                }
+    
+    composable(
+        route = AuthScreen.EnterPhoneNumber.route,
+        arguments = listOf(
+            navArgument(AuthScreen.Args.AUTH_ACTION) { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val authActionString = backStackEntry.arguments?.getString(AuthScreen.Args.AUTH_ACTION)
+        val authAction = authActionString?.let { AuthAction.valueOf(it) } ?: AuthAction.LOGIN
+        val authViewModel: AuthViewModel =
+            hiltViewModel(backStackEntry)
+        
+        val selectedRegionCode by backStackEntry.savedStateHandle
+            .getStateFlow<String?>("selected_region_code", null)
+            .collectAsState()
+        
+        LaunchedEffect(selectedRegionCode) {
+            selectedRegionCode?.let { region ->
+                authViewModel.onRegionSelected(region)
+                backStackEntry.savedStateHandle.remove<String>("selected_region_code")
             }
+        }
+        
+        EnterPhoneNumberScreen(
+            authAction = authAction,
+            viewModel = authViewModel,
+            onNavigateToVerifyOTP = { phoneNumber, action ->
+                navController.navigate(AuthScreen.VerifyOTP.createRoute(phoneNumber, action))
+            },
+            onNavigateBack = { navController.popBackStack() },
+            onShowCountryPicker = { navController.navigate(AuthScreen.PickCountry.route) }
         )
     }
-    composable(AuthScreen.Register.route) {
-        RegisterScreen(
-            onRegistrationSuccess = { requiresEmailVerification ->
-                if (requiresEmailVerification) {
-                    navController.navigate(AuthScreen.EmailVerification.route) {
-                        popUpTo(AuthScreen.Register.route) { inclusive = true }
-                    }
-                } else {
-                    // After successful registration, navigate to Login
-                    navController.navigate(AuthScreen.Login.route) {
-                        popUpTo(AppGraphRoutes.AUTH_GRAPH_ROUTE) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-                }
-            },
-            onNavigateToLogin = {
-                navController.navigate(AuthScreen.Login.route) {
-                    popUpTo(AuthScreen.Register.route) { inclusive = true }
-                }
-            },
-            onNavigateBackToEntry = {
-                navController.navigate(AuthScreen.Entry.route) {
-                    popUpTo(AuthScreen.Register.route) { inclusive = true }
-                }
-            }
+    
+    composable(
+        route = AuthScreen.PickCountry.route,
+    ) {
+        Text("Country Picker Screen (Implement Me)")
+    }
+    
+    composable(
+        route = AuthScreen.VerifyOTP.route,
+        arguments = listOf(
+            navArgument(AuthScreen.Args.PHONE_NUMBER) { type = NavType.StringType },
+            navArgument(AuthScreen.Args.AUTH_ACTION) { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val phoneNumber = backStackEntry.arguments?.getString(AuthScreen.Args.PHONE_NUMBER)
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            Log.e("AuthGraph", "VerifyOTPScreen launched without a valid phone number.")
+            navController.popBackStack()
+            return@composable
+        }
+        
+        val authActionString = backStackEntry.arguments?.getString(AuthScreen.Args.AUTH_ACTION)
+        val authAction =
+            authActionString?.let { AuthAction.valueOf(it) } ?: AuthAction.LOGIN // Default
+        
+        VerifyOTPScreen(
+            phoneNumberFromNav = phoneNumber,
+            authActionFromNav = authAction,
+            onNavigateBack = { navController.popBackStack() }
         )
     }
-    composable(AuthScreen.EmailVerification.route) {
-        // Replace with your actual EmailVerificationScreen
-        Text("Email Verification Screen Placeholder (Implement Me)")
+    
+    composable(AuthScreen.ProfileSetupName.route) {
+        // Replace with your actual ProfileSetupNameScreen
+        Text("Profile Setup Name Screen Placeholder (Implement Me)")
     }
-    composable(AuthScreen.PhoneVerification.route) { // Assuming you have this in AuthScreen
-        Text("Phone Verification Screen Placeholder (Implement Me)")
+    
+    composable(AuthScreen.ProfileSetupEmail.route) {
+        // Replace with your actual ProfileSetupEmailScreen
+        Text("Profile Setup Email Screen Placeholder (Implement Me)")
+    }
+    
+    composable(AuthScreen.ProfileSetupDob.route) {
+        // Replace with your actual ProfileSetupDobScreen
+        Text("Profile Setup Dob Screen Placeholder (Implement Me)")
+    }
+    
+    composable(AuthScreen.ProfileSetupNotifs.route) {
+        // Replace with your actual ProfileSetupNotifsScreen
+        Text("Profile Setup Notifs Screen Placeholder (Implement Me)")
     }
 }

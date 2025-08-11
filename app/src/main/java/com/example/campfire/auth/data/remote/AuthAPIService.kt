@@ -1,38 +1,46 @@
 package com.example.campfire.auth.data.remote
 
-import com.example.campfire.auth.data.remote.dto.request.RegisterRequest
-import com.example.campfire.auth.data.remote.dto.request.VerifyEmailRequest
-import com.example.campfire.auth.data.remote.dto.request.VerifyPhoneRequest
+import com.example.campfire.auth.data.remote.dto.request.CompleteProfileRequest
+import com.example.campfire.auth.data.remote.dto.request.SendOTPRequest
+import com.example.campfire.auth.data.remote.dto.request.VerifyOTPRequest
 import com.example.campfire.auth.data.remote.dto.response.ApiResponse
-import com.example.campfire.auth.data.remote.dto.response.MessageResponse
-import com.example.campfire.auth.data.remote.dto.response.RegisterApiResponse
+import com.example.campfire.auth.data.remote.dto.response.OTPResponse
 import com.example.campfire.auth.data.remote.dto.response.TokenResponse
-import retrofit2.Call
-import retrofit2.Response
+import com.example.campfire.auth.data.remote.dto.response.UserResponse
 import retrofit2.http.Body
-import retrofit2.http.Field
-import retrofit2.http.FormUrlEncoded
 import retrofit2.http.POST
 
 
 interface AuthApiService {
-    @POST("auth/register")
-    fun registerUser(@Body request: RegisterRequest): Response<RegisterApiResponse>
+    /**
+     * Sends an OTP (One-Time Password) to the provided phone number.
+     * The API response will indicate success and may contain a relevant message.
+     */
+    @POST("auth/request-otp")
+    suspend fun sendOtp(@Body request: SendOTPRequest): ApiResponse<OTPResponse>
     
-    @FormUrlEncoded
-    @POST("auth/login")
-    suspend fun loginUser(
-        @Field("username") username: String,
-        @Field("password") password: String,
-    ): Response<TokenResponse>
+    /**
+     * Verifies the OTP code sent to the phone number.
+     * On success, returns an ApiResponse containing TokenResponse in its data field.
+     */
+    @POST("auth/verify-otp")
+    suspend fun verifyOTP(@Body request: VerifyOTPRequest): ApiResponse<TokenResponse>
     
+    /**
+     * Finishes the base user account setup.
+     * On success, returns an ApiResponse containing UserResponse in its data field.
+     */
+    @POST("/me/complete-profile")
+    suspend fun completeUserProfile(@Body request: CompleteProfileRequest): ApiResponse<UserResponse>
+    
+    /**
+     * Logs out the current user.
+     * The API response will indicate success and may contain a relevant message.
+     */
     @POST("auth/logout")
-    suspend fun logoutUser(
-    ): Response<Unit>
+    suspend fun logoutUser(): ApiResponse<Unit>
     
-    @POST("auth/verify-email")
-    fun verifyEmail(@Body request: VerifyEmailRequest): Call<ApiResponse<MessageResponse>>
-    
-    @POST("auth/verify-phone")
-    fun verifyPhone(@Body request: VerifyPhoneRequest): Call<ApiResponse<MessageResponse>>
+    // JD TODO: Update the email calls here to be similar to the phone verification code process (if I want them at all)
+//    @POST("auth/verify-email")
+//    fun verifyEmail(@Body request: VerifyEmailRequest): ApiResponse<TokenResponse>>
 }

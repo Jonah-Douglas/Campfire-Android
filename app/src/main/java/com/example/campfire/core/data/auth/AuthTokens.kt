@@ -7,7 +7,8 @@ data class AuthTokens(
 )
 
 interface IAuthTokenManager {
-    fun saveTokens(tokens: AuthTokens)
-    fun getTokens(): AuthTokens?
-    fun clearTokens()
+    suspend fun saveTokens(tokens: AuthTokens)
+    suspend fun getTokens(): AuthTokens?
+    suspend fun clearTokens()
+    fun getCurrentTokens(): AuthTokens?
 }

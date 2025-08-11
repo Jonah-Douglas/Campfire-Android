@@ -36,6 +36,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.campfire.R
+import com.example.campfire.auth.presentation.navigation.AuthAction
 
 
 // JD TODO: add these
@@ -47,8 +48,7 @@ const val ANNOTATION_PRIVACY = "https://example.com/privacy" // Replace with you
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntryScreen(
-    onNavigateToLogin: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onNavigateToEnterPhoneNumber: (AuthAction) -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
     
@@ -69,6 +69,7 @@ fun EntryScreen(
         pop()
         
         append(stringResource(id = R.string.entry_agreement_part2))
+        append(" ")
         
         pushStringAnnotation(tag = TAG_URL, annotation = ANNOTATION_PRIVACY)
         withStyle(
@@ -147,22 +148,24 @@ fun EntryScreen(
             // --- End Info Textbox ---
             
             Button(
-                onClick = onNavigateToRegister,
+                onClick = { onNavigateToEnterPhoneNumber(AuthAction.REGISTER) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colorResource(id = R.color.onPrimaryContainer),
                     contentColor = colorResource(id = R.color.primaryContainer)
                 )
             ) {
-                Text(stringResource(id = R.string.register_button_text))
+                Text(stringResource(id = R.string.create_account_button_text))
             }
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(
-                onClick = onNavigateToLogin,
+                onClick = { onNavigateToEnterPhoneNumber(AuthAction.LOGIN) },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(
-                    id = R.string.login_button_text),
+                Text(
+                    stringResource(
+                        id = R.string.sign_in_button_text
+                    ),
                     color = colorResource(id = R.color.onPrimaryContainer)
                 )
             }
@@ -172,8 +175,8 @@ fun EntryScreen(
 
 @Preview(showBackground = true)
 @Composable
-fun EntryScreenWithLegalTextPreview() {
+fun EntryScreenPreview() {
     MaterialTheme {
-        EntryScreen(onNavigateToLogin = {}, onNavigateToRegister = {})
+        EntryScreen(onNavigateToEnterPhoneNumber = {})
     }
 }

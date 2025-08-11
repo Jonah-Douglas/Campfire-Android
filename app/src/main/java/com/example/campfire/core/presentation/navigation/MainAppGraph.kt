@@ -18,11 +18,9 @@ fun NavGraphBuilder.mainAppGraph(
     navController: NavHostController,
     onLogout: () -> Unit
 ) {
-    // Define routes for features within the main authenticated app experience
-    
     // --- Feed Feature Screens ---
     composable(FeedScreen.FeedOverview.route) {
-        // Replace with your actual FeedOverviewScreen
+        // FeedOverviewScreen(navController = navController, onLogout = onLogout /* if needed directly */)
         Text("Feed Overview Screen (from mainAppGraph)")
         Button(onClick = { navController.navigate(ProfileScreen.ProfileOverview.route) }) {
             Text("Go to Profile")

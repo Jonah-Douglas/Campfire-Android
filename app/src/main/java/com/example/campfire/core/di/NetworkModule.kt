@@ -88,6 +88,7 @@ object NetworkModule {
     // Retrofit for general authenticated API calls, using the "AuthenticatedClient"
     @Provides
     @Singleton
+    @Named("AuthenticatedRetrofit")
     fun provideRetrofit(@Named("AuthenticatedClient") okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl(BuildConfig.BASE_URL)

@@ -128,6 +128,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
     
+    // Libphonenumber
+    implementation(libs.google.libphonenumber)
+    
     // Splash Screen
     implementation(libs.core.splashscreen)
     implementation(libs.material)
