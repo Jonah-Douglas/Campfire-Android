@@ -12,6 +12,7 @@ interface IAuthScreenActions {
     // --- Phone Number Input Changes ---
     fun onRegionSelected(regionCode: String)
     fun onNationalNumberInputValueChanged(newNationalNumber: TextFieldValue)
+    fun clearErrorsOnInput()
     
     // --- OTP Sending ---
     fun attemptSendOTP()

@@ -46,8 +46,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
                         e.message
                     ),
                     cause = e,
-                    fieldName = FieldName.DATE,
-                    fieldValue = nonNullDateString
+                    fieldName = FieldName.DATE
                 )
             }
         }
@@ -86,8 +85,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
                 throw MappingException(
                     message = String.format(ERROR_PHONE_STRING_UNMAPPABLE, nonNullPhoneString),
                     cause = e,
-                    fieldName = FieldName.PHONE,
-                    fieldValue = nonNullPhoneString
+                    fieldName = FieldName.PHONE
                 )
             }
         }
@@ -124,8 +122,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
                 Log.w(LOG_TAG, String.format(LOG_EMAIL_STRING_FAILURE, trimmedEmail, it))
                 throw MappingException(
                     message = String.format(ERROR_EMAIL_STRING_UNMAPPABLE, trimmedEmail),
-                    fieldName = FieldName.EMAIL,
-                    fieldValue = trimmedEmail // Log the trimmed version that failed
+                    fieldName = FieldName.EMAIL
                 )
             }
         }
@@ -172,8 +169,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
             )
             throw MappingException(
                 message = errorMessage,
-                fieldName = fieldName,
-                fieldValue = dtoValue?.toString() // Convert original DTO value to string for reporting
+                fieldName = fieldName
             )
         }
     }

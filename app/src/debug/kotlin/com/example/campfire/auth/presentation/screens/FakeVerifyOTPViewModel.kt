@@ -33,6 +33,7 @@ class FakeVerifyOTPViewModel(
     
     override fun onRegionSelected(regionCode: String) {}
     override fun onNationalNumberInputValueChanged(newNationalNumber: TextFieldValue) {}
+    override fun clearErrorsOnInput() {}
     override fun attemptSendOTP() {}
     override fun resendOTP() {}
     override fun setAuthOperationContext(

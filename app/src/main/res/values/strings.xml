@@ -1,5 +1,6 @@
 <resources>
     <string name="campfire">Campfire</string>
+    <string name="back">Back</string>
 
     <!-- Entry Screen Strings / JD TODO: Change this, stolen straight from Hinge -->
     <string name="slogan">Up and at \'em!</string>
@@ -21,6 +22,12 @@
     <string name="send_code_button">Send Code</string>
     <string name="navigate_back">Navigate back</string>
     <string name="otp_sent">OTP Sent!</string>
+
+    <!-- Pick Country Picker Dialog Screen -->
+    <string name="select_country_dialog_title">Select Country</string>
+    <string name="select_country_code_description">Select the country your phone is registered in.</string>
+    <string name="cancel">Cancel</string>
+    <string name="error_generic_api">An unexpected error occurred. Please try again.</string>
 
     <!-- Verify OTP Screen -->
     <string name="verify_phone_number_title">Verify Phone Number</string>

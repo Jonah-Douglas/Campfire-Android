@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.collectLatest
 
 @Suppress("unused")
 @Composable
+// JD TODO: Probably delete this class in favor of individual screens for each portion of the profile
 fun CompleteProfileScreen(
     viewModel: AuthContract = hiltViewModel<AuthViewModel>(),
     onNavigateToMainApp: () -> Unit
@@ -39,14 +40,11 @@ fun CompleteProfileScreen(
     LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     
-    // Observe UserMessages
     LaunchedEffect(Unit) {
         viewModel.userMessages.collectLatest { message ->
-            // ... (handle UserMessage like in VerifyOTPScreen)
         }
     }
     
-    // Observe NavigationEvents
     LaunchedEffect(Unit) {
         viewModel.authNavigationEvents.collectLatest { event ->
             if (event is AuthNavigationEvent.ToMainApp) {
@@ -57,7 +55,6 @@ fun CompleteProfileScreen(
     
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        // ... TopAppBar etc. ...
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -65,7 +62,6 @@ fun CompleteProfileScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // --- First Name ---
             OutlinedTextField(
                 value = uiState.firstName,
                 onValueChange = viewModel::onFirstNameChanged,
@@ -79,15 +75,6 @@ fun CompleteProfileScreen(
                 )
             }
             
-            // --- Last Name ---
-            // ... similar for lastName, email, dateOfBirthInput, enableNotifications ...
-            
-            // --- Date of Birth (Example with a DatePicker dialog interaction) ---
-            // You'd have a button to show a DatePickerDialog.
-            // When date is selected, call viewModel.onDateOfBirthInputChanged with the formatted string
-            // or directly set the LocalDate if your dialog gives it back.
-            
-            // --- Enable Notifications ---
             Row {
                 Checkbox(
                     checked = uiState.enableNotifications,

@@ -137,7 +137,7 @@ fun UnderlinedTextField(
     errorColor: Color = MaterialTheme.colorScheme.error,
     visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
-    val color = if (isError) errorColor else underlineColor
+    val color = underlineColor
     BasicTextField(
         value = value,
         onValueChange = onValueChange,

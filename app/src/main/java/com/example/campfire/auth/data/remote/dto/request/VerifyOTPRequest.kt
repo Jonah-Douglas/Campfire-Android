@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 
 /**
- * Data class for phone verification request
+ * Data class for verifying a phone via OTP request
  */
 data class VerifyOTPRequest(
     @SerializedName("phone_number")

@@ -29,7 +29,7 @@ data class UserResponse(
     @SerializedName("is_superuser")
     val isSuperuser: Boolean,
     @SerializedName("created_at")
-    val createdAt: String?,
+    val createdAt: String,
     @SerializedName("updated_at")
-    val updatedAt: String?
+    val updatedAt: String
 )

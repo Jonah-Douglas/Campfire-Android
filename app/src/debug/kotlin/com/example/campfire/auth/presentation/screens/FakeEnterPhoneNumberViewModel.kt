@@ -1,8 +1,7 @@
-package com.example.campfire.auth.presentation.screens // Or your appropriate test/preview package
+package com.example.campfire.auth.presentation.screens
 
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
-import com.example.campfire.auth.domain.repository.SendOTPResult
 import com.example.campfire.auth.presentation.AuthContract
 import com.example.campfire.auth.presentation.AuthNavigationEvent
 import com.example.campfire.auth.presentation.CompleteProfileUIState
@@ -67,6 +66,8 @@ class FakeEnterPhoneNumberViewModel(
             )
         }
     }
+    
+    override fun clearErrorsOnInput() {}
     
     override fun attemptSendOTP() {
         val currentState = _fakeSendOTPUIState.value
@@ -159,46 +160,4 @@ class FakeEnterPhoneNumberViewModel(
     override fun onEnableNotificationsChanged(enabled: Boolean) {}
     override fun completeUserProfile() {}
     override fun clearCompleteProfileResult() {}
-    
-    
-    // --- Helper methods for testing/previews ---
-    
-    /**
-     * Directly sets the SendOTPUIState for use in Previews or tests.
-     */
-    fun setSendOTPUIState(newState: SendOTPUIState) {
-        _fakeSendOTPUIState.value = newState
-        // Update related states if necessary
-        if (newState.sendOTPResult is SendOTPResult.Success || newState.sendOTPResult is SendOTPResult.UserAlreadyExists) {
-            // Attempt to derive phone number if possible, or require it to be set explicitly for the preview
-            val e164 = newState.parsedPhoneNumber?.e164Format
-            _fakeCurrentPhoneNumberForOTP.value = e164
-        } else if (newState.sendOTPResult == null && newState.validationError == null) {
-            // If state is reset, clear current phone number unless parsedPhoneNumber is still valid
-            _fakeCurrentPhoneNumberForOTP.value = newState.parsedPhoneNumber?.e164Format
-        }
-    }
-    
-    /**
-     * Directly sets the value for currentPhoneNumberForVerification.
-     * Useful for previews of screens that depend on this, like VerifyOTPScreen,
-     * or for AppNavigation previews testing navigation logic.
-     */
-    fun setFakeCurrentPhoneNumberForVerification(phone: String?) {
-        _fakeCurrentPhoneNumberForOTP.value = phone
-    }
-    
-    /**
-     * Simulates emitting a UserMessage.
-     */
-    suspend fun emitUserMessage(message: UserMessage) {
-        _userMessageChannel.emit(message)
-    }
-    
-    /**
-     * Simulates emitting an AuthNavigationEvent.
-     */
-    suspend fun emitAuthNavigationEvent(event: AuthNavigationEvent) {
-        _authNavigationEventChannel.emit(event)
-    }
 }

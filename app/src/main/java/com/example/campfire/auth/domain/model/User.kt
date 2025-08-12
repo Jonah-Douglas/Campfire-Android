@@ -15,6 +15,6 @@ data class User(
     val isProfileComplete: Boolean,
     val isActive: Boolean,
     val isSuperuser: Boolean,
-    val createdAt: LocalDate?,
-    val updatedAt: LocalDate?,
+    val createdAt: LocalDate,
+    val updatedAt: LocalDate,
 )

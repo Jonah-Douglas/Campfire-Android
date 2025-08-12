@@ -12,11 +12,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -67,6 +64,7 @@ import com.example.campfire.auth.presentation.navigation.AuthAction
 import com.example.campfire.core.presentation.components.UnderlinedInputText
 import com.example.campfire.core.presentation.components.UnderlinedTextField
 import com.example.campfire.core.presentation.components.UsPhoneNumberVisualTransformation
+import com.example.campfire.core.presentation.utils.getFlagEmojiForRegionCode
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -82,8 +80,6 @@ fun PhoneNumberInputRow(
     onDoneAction: () -> Unit
 ) {
     val localFocusManager = LocalFocusManager.current
-    val isError = uiState.validationError != null ||
-            (uiState.sendOTPResult != null && uiState.sendOTPResult !is SendOTPResult.Success)
     val phoneNumberTransformation = remember { UsPhoneNumberVisualTransformation() }
     
     Row(
@@ -94,23 +90,25 @@ fun PhoneNumberInputRow(
             value = uiState.displayCountryDialCode.ifEmpty { "--" },
             onClick = onCountryCodeClick,
             modifier = Modifier
-                .weight(0.4f)
-                .padding(end = 8.dp),
-            textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center),
-            isError = isError,
+                .weight(0.35f)
+                .padding(vertical = 8.dp),
+            textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Start),
             underlineColor = colorResource(id = R.color.onPrimaryContainer),
-            showDropdownArrow = true
+            showDropdownArrow = true,
+            dropdownArrowContentDescription = stringResource(R.string.select_country_code_description),
+            leadingIcon = {
+                Text(
+                    text = getFlagEmojiForRegionCode(uiState.selectedRegionCode),
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+            }
         )
-        
-        Spacer(Modifier.width(8.dp))
-        
+        Spacer(Modifier.width(16.dp))
         UnderlinedTextField(
             value = uiState.nationalNumberInput,
-            onValueChange = { textFieldValue ->
-                onNationalNumberChange(textFieldValue)
-            },
+            onValueChange = onNationalNumberChange,
             modifier = Modifier
-                .weight(0.6f)
+                .weight(0.65f)
                 .focusRequester(focusRequester),
             textStyle = MaterialTheme.typography.headlineSmall,
             keyboardOptions = KeyboardOptions(
@@ -123,7 +121,6 @@ fun PhoneNumberInputRow(
                     onDoneAction()
                 }
             ),
-            isError = isError,
             singleLine = true,
             underlineColor = colorResource(id = R.color.onPrimaryContainer),
             visualTransformation = phoneNumberTransformation
@@ -137,7 +134,7 @@ fun EnterPhoneNumberScreen(
     viewModel: AuthContract = hiltViewModel<AuthViewModel>(),
     onNavigateToVerifyOTP: (phoneNumber: String, authAction: AuthAction) -> Unit,
     onNavigateBack: () -> Unit,
-    onShowCountryPicker: () -> Unit
+    onNavigateToPickCountry: () -> Unit,
 ) {
     val uiState by viewModel.sendOTPUIState.collectAsState()
     val context = LocalContext.current
@@ -146,14 +143,13 @@ fun EnterPhoneNumberScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     
-    // Set operation context when authAction changes or screen is first composed
     LaunchedEffect(key1 = authAction) {
         viewModel.setAuthOperationContext(
             action = authAction,
             phoneNumberE164 = null,
             isNewContext = true
         )
-        nationalNumberFocusRequester.requestFocus()
+        scope.launch { nationalNumberFocusRequester.requestFocus() }
     }
     
     // Handle UserMessages (Snackbars, Toasts) from ViewModel
@@ -286,12 +282,7 @@ fun EnterPhoneNumberScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 24.dp)
-                .padding(top = 16.dp),
-            horizontalAlignment = Alignment.Start,
+                .padding(horizontal = 16.dp),
         ) {
             Spacer(modifier = Modifier.height(56.dp))
             
@@ -312,12 +303,43 @@ fun EnterPhoneNumberScreen(
             
             Spacer(modifier = Modifier.height(40.dp))
             
+            val errorTextHeight = 20.dp
+            if (uiState.validationError != null) {
+                Text(
+                    text = uiState.validationError!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp), // Space between error and input fields
+                    textAlign = TextAlign.End
+                )
+            } else if (uiState.sendOTPResult is SendOTPResult.Generic) {
+                Text(
+                    text = (uiState.sendOTPResult as SendOTPResult.Generic).message
+                        ?: stringResource(R.string.error_generic_api),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp), // Space between error and input fields
+                    textAlign = TextAlign.Start
+                )
+            } else {
+                // JD TODO: Maybe animate the appearance.
+                Spacer(modifier = Modifier.height(errorTextHeight + 8.dp)) // height of text + padding
+            }
+            
             PhoneNumberInputRow(
                 uiState = uiState,
-                onNationalNumberChange = viewModel::onNationalNumberInputValueChanged,
+                onNationalNumberChange = { newValue ->
+                    viewModel.onNationalNumberInputValueChanged(newValue)
+                    viewModel.clearErrorsOnInput() // New ViewModel function
+                },
                 onCountryCodeClick = {
                     keyboardController?.hide()
-                    onShowCountryPicker()
+                    viewModel.clearErrorsOnInput() // New ViewModel function
+                    onNavigateToPickCountry()
                 },
                 focusRequester = nationalNumberFocusRequester,
                 onDoneAction = {
@@ -326,6 +348,7 @@ fun EnterPhoneNumberScreen(
                     }
                 }
             )
+            
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.send_code_as_text_info),
@@ -361,7 +384,7 @@ fun EnterPhoneNumberScreenPreview_Idle() {
             ),
             onNavigateToVerifyOTP = { phoneNumber, authAction -> },
             onNavigateBack = {},
-            onShowCountryPicker = {}
+            onNavigateToPickCountry = {},
         )
     }
 }
@@ -381,7 +404,7 @@ fun EnterPhoneNumberScreenPreview_NumberEntered() {
             ),
             onNavigateToVerifyOTP = { phoneNumber, authAction -> },
             onNavigateBack = {},
-            onShowCountryPicker = {}
+            onNavigateToPickCountry = {},
         )
     }
 }
@@ -402,7 +425,7 @@ fun EnterPhoneNumberScreenPreview_Loading() {
             ),
             onNavigateToVerifyOTP = { phoneNumber, authAction -> },
             onNavigateBack = {},
-            onShowCountryPicker = {}
+            onNavigateToPickCountry = {},
         )
     }
 }
@@ -423,7 +446,7 @@ fun EnterPhoneNumberScreenPreview_ValidationError() {
             ),
             onNavigateToVerifyOTP = { phoneNumber, authAction -> },
             onNavigateBack = {},
-            onShowCountryPicker = {}
+            onNavigateToPickCountry = {},
         )
     }
 }
@@ -444,7 +467,7 @@ fun EnterPhoneNumberScreenPreview_ApiError() {
             ),
             onNavigateToVerifyOTP = { phoneNumber, authAction -> },
             onNavigateBack = {},
-            onShowCountryPicker = {}
+            onNavigateToPickCountry = {},
         )
     }
 }

@@ -40,10 +40,9 @@ import com.example.campfire.auth.presentation.navigation.AuthAction
 
 
 // JD TODO: add these
-// Define constants for your annotations
 const val TAG_URL = "URL"
-const val ANNOTATION_TERMS = "https://example.com/terms" // Replace with your actual URL
-const val ANNOTATION_PRIVACY = "https://example.com/privacy" // Replace with your actual URL
+const val ANNOTATION_TERMS = "https://example.com/terms" // Replace with actual URL
+const val ANNOTATION_PRIVACY = "https://example.com/privacy" // Replace with actual URL
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

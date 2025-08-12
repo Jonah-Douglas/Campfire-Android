@@ -37,12 +37,20 @@ class UserMapper @Inject constructor(
         val email = dataTypeMapper.mapMandatoryField(
             dtoValue = dto.email,
             fieldName = FieldName.EMAIL,
-            transform = dataTypeMapper::mapToDomainEmail // Assuming this returns String as per your DataTypeMapper
+            transform = dataTypeMapper::mapToDomainEmail
         )
         
-        // --- Nullable Date Mapping (createdAt, updatedAt) ---
-        val createdAtDate = dataTypeMapper.mapStringToLocalDate(dto.createdAt)
-        val updatedAtDate = dataTypeMapper.mapStringToLocalDate(dto.updatedAt)
+        val createdAtDate = dataTypeMapper.mapMandatoryField(
+            dtoValue = dto.createdAt,
+            fieldName = FieldName.CREATED_AT,
+            transform = dataTypeMapper::mapStringToLocalDate
+        )
+        
+        val updatedAtDate = dataTypeMapper.mapMandatoryField(
+            dtoValue = dto.updatedAt,
+            fieldName = FieldName.UPDATED_AT,
+            transform = dataTypeMapper::mapStringToLocalDate
+        )
         
         return User(
             id = dto.id,
@@ -64,6 +72,8 @@ class UserMapper @Inject constructor(
         const val PHONE = "phone"
         const val DATE_OF_BIRTH = "dateOfBirth"
         const val EMAIL = "email"
+        const val CREATED_AT = "createdAt"
+        const val UPDATED_AT = "updatedAt"
     }
 }
 

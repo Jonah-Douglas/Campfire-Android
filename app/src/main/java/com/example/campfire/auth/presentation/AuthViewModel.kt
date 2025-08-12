@@ -14,6 +14,7 @@ import com.example.campfire.auth.domain.usecase.SendOTPUseCase
 import com.example.campfire.auth.domain.usecase.VerifyOTPUseCase
 import com.example.campfire.auth.presentation.navigation.AuthAction
 import com.example.campfire.core.domain.model.PhoneNumber
+import com.example.campfire.core.presentation.utils.getFlagEmojiForRegionCode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -30,15 +31,23 @@ import java.util.Locale
 import javax.inject.Inject
 
 
+data class CountryUIModel(
+    val name: String,        // e.g., "United States"
+    val regionCode: String,  // e.g., "US"
+    val dialCode: String,    // e.g., "+1"
+    val flagEmoji: String    // e.g., "🇺🇸"
+)
+
 data class SendOTPUIState(
-    val selectedRegionCode: String = "", // e.g., "US", "GB" - Represents the selected country
-    // JD TODO: Change +1 default to default to the cc of phone location
-    val displayCountryDialCode: String = "+1", // e.g., "+1", "+44" - For display in the UI
-    val nationalNumberInput: TextFieldValue = TextFieldValue(""), // The number part input by the user
+    val currentAuthAction: AuthAction = AuthAction.LOGIN,
+    val selectedRegionCode: String = "",
+    val displayCountryDialCode: String = "+1",
+    val nationalNumberInput: TextFieldValue = TextFieldValue(""),
     val isLoading: Boolean = false,
     val sendOTPResult: SendOTPResult? = null,
-    val parsedPhoneNumber: PhoneNumber? = null, // Store the validated PhoneNumber
-    val validationError: String? = null // For input validation errors before trying to send OTP
+    val parsedPhoneNumber: PhoneNumber? = null,
+    val validationError: String? = null,
+    val availableCountries: List<CountryUIModel> = emptyList()
 )
 
 data class VerifyOTPUIState(
@@ -93,13 +102,49 @@ class AuthViewModel @Inject constructor(
     private var currentFullPhoneNumberTarget: String? = null
     
     init {
+        loadAvailableCountries()
         // Set initial default country code
         val defaultRegion = Locale.getDefault().country
-        if (defaultRegion.isNotBlank()) {
+        
+        val countries = _sendOTPUIState.value.availableCountries
+        val defaultCountryIsSupported = countries.any { it.regionCode == defaultRegion }
+        
+        if (defaultRegion.isNotBlank() && defaultCountryIsSupported) {
             onRegionSelected(defaultRegion)
         } else {
-            onRegionSelected("US")
+            val fallbackRegion = countries.firstOrNull()?.regionCode ?: "US"
+            onRegionSelected(fallbackRegion)
+            if (defaultRegion.isNotBlank() && !defaultCountryIsSupported) {
+                Log.w(
+                    LOG_TAG,
+                    "Device default region '$defaultRegion' is not in the configured available countries, using fallback '$fallbackRegion'."
+                )
+            }
         }
+    }
+    
+    /**
+     * Loads the available countries for phone number selection.
+     */
+    private fun loadAvailableCountries() {
+        val countries = PhoneNumber.getSupportedRegions().mapNotNull { regionCode ->
+            val localeForRegion = Locale.Builder().setRegion(regionCode).build()
+            val countryName = localeForRegion.displayCountry
+            
+            val dialCode = PhoneNumber.getDialingCodeForRegion(regionCode)
+            if (dialCode != 0) {
+                CountryUIModel(
+                    name = countryName.ifEmpty { regionCode },
+                    regionCode = regionCode.uppercase(Locale.ROOT),
+                    dialCode = "+$dialCode",
+                    flagEmoji = getFlagEmojiForRegionCode(regionCode)
+                )
+            } else {
+                null
+            }
+        }.sortedBy { it.name }
+        
+        _sendOTPUIState.update { it.copy(availableCountries = countries) }
     }
     
     override fun onRegionSelected(regionCode: String) {
@@ -133,6 +178,17 @@ class AuthViewModel @Inject constructor(
         }
     }
     
+    override fun clearErrorsOnInput() {
+        if (_sendOTPUIState.value.validationError != null || _sendOTPUIState.value.sendOTPResult is SendOTPResult.Generic) {
+            _sendOTPUIState.update {
+                it.copy(
+                    validationError = null,
+                    sendOTPResult = if (it.sendOTPResult is SendOTPResult.Generic) null else it.sendOTPResult
+                )
+            }
+        }
+    }
+    
     /**
      * Sets the operational context for authentication actions (sending or verifying OTP).
      * This should be called when the relevant screen (EnterPhoneNumberScreen or VerifyOTPScreen)
@@ -147,6 +203,10 @@ class AuthViewModel @Inject constructor(
         phoneNumberE164: String?,
         isNewContext: Boolean
     ) {
+        Log.d(
+            LOG_TAG,
+            "setAuthOperationContext CALLED. isNewContext: $isNewContext. Countries BEFORE: ${_sendOTPUIState.value.availableCountries.size}"
+        )
         currentAuthActionInternal = action
         currentFullPhoneNumberTarget = phoneNumberE164
         _phoneNumberForVerification.value = phoneNumberE164
@@ -158,26 +218,60 @@ class AuthViewModel @Inject constructor(
                 null
             }
             
+            // Determine the region to select. It should ideally use the already loaded countries.
+            val currentCountries =
+                _sendOTPUIState.value.availableCountries
             val defaultDeviceRegion = Locale.getDefault().country.takeIf { it.isNotBlank() } ?: "US"
-            val region = initialPhoneNumber?.regionCode ?: defaultDeviceRegion
-            val dialCode = PhoneNumber.getDialingCodeForRegion(region)
             
-            _sendOTPUIState.value = SendOTPUIState(
-                selectedRegionCode = region,
-                displayCountryDialCode = if (dialCode != 0) "+$dialCode" else PhoneNumber.getDialingCodeForRegion(
-                    "US"
-                ).let { "+$it" },
-                nationalNumberInput = TextFieldValue(
-                    initialPhoneNumber?.nationalNumber?.toString() ?: ""
-                ),
-                parsedPhoneNumber = initialPhoneNumber,
-                isLoading = false,
-                sendOTPResult = null,
-                validationError = null
-            )
+            var regionToSelect = initialPhoneNumber?.regionCode
+                ?: _sendOTPUIState.value.selectedRegionCode.takeIf { it.isNotBlank() }
+                ?: defaultDeviceRegion
             
+            // Validate regionToSelect against available countries
+            if (currentCountries.isNotEmpty() && !currentCountries.any {
+                    it.regionCode.equals(
+                        regionToSelect,
+                        ignoreCase = true
+                    )
+                }) {
+                regionToSelect =
+                    currentCountries.first().regionCode
+            } else if (currentCountries.isEmpty() && PhoneNumber.getDialingCodeForRegion(
+                    regionToSelect
+                ) == 0
+            ) {
+                regionToSelect = "US"
+            }
+            
+            val dialCode = PhoneNumber.getDialingCodeForRegion(regionToSelect)
+            
+            _sendOTPUIState.update { currentState -> // Use .update
+                currentState.copy(
+                    currentAuthAction = action,
+                    selectedRegionCode = regionToSelect.uppercase(Locale.ROOT),
+                    displayCountryDialCode = if (dialCode != 0) "+$dialCode" else PhoneNumber.getDialingCodeForRegion(
+                        "US"
+                    ).let { "+$it" },
+                    nationalNumberInput = TextFieldValue(
+                        initialPhoneNumber?.nationalNumber?.toString()
+                            ?: currentState.nationalNumberInput.text
+                    ),
+                    parsedPhoneNumber = initialPhoneNumber ?: currentState.parsedPhoneNumber,
+                    isLoading = false,
+                    sendOTPResult = null,
+                    validationError = null,
+                )
+            }
             _verifyOTPUIState.value = VerifyOTPUIState()
+        } else {
+            _sendOTPUIState.update { currentState ->
+                currentState.copy(currentAuthAction = action)
+            }
         }
+        Log.d(
+            LOG_TAG,
+            "setAuthOperationContext END. Countries AFTER: ${_sendOTPUIState.value.availableCountries.size}"
+        )
     }
     
     // --- Send OTP ---
@@ -434,9 +528,9 @@ class AuthViewModel @Inject constructor(
         if (uiState.firstName.text.isBlank()) fieldErrors[Field.FIRST_NAME] =
             ERROR_FIRST_NAME_MISSING
         if (uiState.lastName.text.isBlank()) fieldErrors[Field.LAST_NAME] =
-            ERROR_LAST_NAME_MISSING // Add similar constants
+            ERROR_LAST_NAME_MISSING
         if (uiState.email.text.isBlank()) fieldErrors[Field.EMAIL] =
-            ERROR_EMAIL_MISSING // Add similar constants
+            ERROR_EMAIL_MISSING
         if (uiState.dateOfBirth == null && uiState.dateOfBirthInput.text.isNotBlank()) { // If input exists but couldn't parse
             fieldErrors[Field.DATE_OF_BIRTH] = ERROR_DOB_INVALID
         } else if (uiState.dateOfBirth == null) {
