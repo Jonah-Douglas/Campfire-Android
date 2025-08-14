@@ -1,6 +1,5 @@
 package com.example.campfire.core.presentation.navigation
 
-import android.util.Log
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,6 +15,7 @@ import com.example.campfire.auth.presentation.AuthNavigationEvent
 import com.example.campfire.auth.presentation.AuthViewModel
 import com.example.campfire.auth.presentation.navigation.AuthScreen
 import com.example.campfire.auth.presentation.navigation.authGraph
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.feed.presentation.navigation.FeedScreen
 
 
@@ -34,7 +34,6 @@ fun AppNavigation(
         AppGraphRoutes.AUTH_GRAPH_ROUTE
     }
     
-    // --- Global Auth UI Logic (Scoped to Auth Graph) ---
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     
     val authGraphBackStackEntry = remember(currentBackStackEntry) {
@@ -43,7 +42,7 @@ fun AppNavigation(
             try {
                 navController.getBackStackEntry(AppGraphRoutes.AUTH_GRAPH_ROUTE)
             } catch (_: IllegalArgumentException) {
-                // The graph is not on the back stack (e.g., when main_app_graph is active)
+                // The graph is not on the back stack
                 null
             }
         } else {
@@ -62,10 +61,9 @@ fun AppNavigation(
             authViewModel.authNavigationEvents.collect { event ->
                 when (event) {
                     is AuthNavigationEvent.ToOTPVerifiedScreen -> {
-                        // Navigate to VerifyOTPScreen, passing the phoneNumber (which AuthViewModel should have)
-                        // and the event.originatingAction
+                        // Navigate to VerifyOTPScreen, passing the phoneNumber and the event.originatingAction
                         val currentPhoneNumber =
-                            authViewModel.currentPhoneNumberForVerification.value // Assuming AuthViewModel exposes this
+                            authViewModel.currentPhoneNumberForVerification.value
                         if (currentPhoneNumber != null) {
                             navController.navigate(
                                 AuthScreen.VerifyOTP.createRoute(
@@ -76,10 +74,7 @@ fun AppNavigation(
                                 popUpTo(AuthScreen.EnterPhoneNumber.route)
                             }
                         } else {
-                            Log.e(
-                                "AppNavigation",
-                                "Cannot navigate to VerifyOTP, phone number missing in ViewModel."
-                            )
+                            Firelog.e("Cannot navigate to VerifyOTP, phone number missing in ViewModel.")
                         }
                     }
                     
@@ -101,7 +96,6 @@ fun AppNavigation(
             }
         }
     }
-    // --- End Global Auth UI Logic ---
     
     NavHost(
         navController = navController,

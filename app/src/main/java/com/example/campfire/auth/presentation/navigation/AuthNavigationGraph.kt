@@ -1,7 +1,6 @@
 package com.example.campfire.auth.presentation.navigation
 
 import android.annotation.SuppressLint
-import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -16,6 +15,7 @@ import com.example.campfire.auth.presentation.screens.EnterPhoneNumberScreen
 import com.example.campfire.auth.presentation.screens.EntryScreen
 import com.example.campfire.auth.presentation.screens.PickCountryScreen
 import com.example.campfire.auth.presentation.screens.VerifyOTPScreen
+import com.example.campfire.core.common.logging.Firelog
 
 
 @SuppressLint("StateFlowValueCalledInComposition")
@@ -42,10 +42,7 @@ fun NavGraphBuilder.authGraph(
         val authViewModel: AuthViewModel =
             hiltViewModel(backStackEntry)
         LaunchedEffect(Unit) {
-            Log.d(
-                "ViewModelCheck",
-                "EnterPhoneNumberScreen - VM Hash: ${authViewModel.hashCode()}, Countries: ${authViewModel.sendOTPUIState.value.availableCountries.size}"
-            )
+            Firelog.d("EnterPhoneNumberScreen - VM Hash: ${authViewModel.hashCode()}, Countries: ${authViewModel.sendOTPUIState.value.availableCountries.size}")
         }
         
         val selectedRegionCodeResult = backStackEntry.savedStateHandle
@@ -73,10 +70,7 @@ fun NavGraphBuilder.authGraph(
         val parentEntry =
             remember(it) { navController.getBackStackEntry(AuthScreen.EnterPhoneNumber.route) }
         val authViewModel: AuthViewModel = hiltViewModel(parentEntry)
-        Log.d(
-            "ViewModelCheck",
-            "NavGraph for PickCountry - Shared VM from parentEntry. Hash: ${authViewModel.hashCode()}, Countries: ${authViewModel.sendOTPUIState.value.availableCountries.size}"
-        )
+        Firelog.d("NavGraph for PickCountry - Shared VM from parentEntry. Hash: ${authViewModel.hashCode()}, Countries: ${authViewModel.sendOTPUIState.value.availableCountries.size}")
         
         PickCountryScreen(
             viewModel = authViewModel,
@@ -101,7 +95,7 @@ fun NavGraphBuilder.authGraph(
     ) { backStackEntry ->
         val phoneNumber = backStackEntry.arguments?.getString(AuthScreen.Args.PHONE_NUMBER)
         if (phoneNumber == null || phoneNumber.isBlank()) {
-            Log.e("AuthGraph", "VerifyOTPScreen launched without a valid phone number.")
+            Firelog.e("VerifyOTPScreen launched without a valid phone number.")
             navController.popBackStack()
             return@composable
         }

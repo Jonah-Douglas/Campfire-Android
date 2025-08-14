@@ -1,9 +1,8 @@
 package com.example.campfire.core.presentation
 
-import android.util.Log
-import android.util.Log.e
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.data.auth.AuthTokenStorage
 import com.example.campfire.core.data.preferences.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,11 +31,11 @@ class MainViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false // Or a sensible default before the flow emits
+            initialValue = false
         )
     
     init {
-        Log.d(LOG_TAG, LOG_VIEWMODEL_INITIALIZED)
+        Firelog.d(LOG_VIEWMODEL_INITIALIZED)
         try {
             viewModelScope.launch {
                 checkAuthStatus()
@@ -49,40 +48,40 @@ class MainViewModel @Inject constructor(
                 _isDataReady.value = true
             }
         } catch (e: Exception) {
-            e(e.message, LOG_AUTH_STATUS_CHECK_FAIL)
+            Firelog.e(LOG_AUTH_STATUS_CHECK_FAIL)
         }
     }
     
     private suspend fun checkAuthStatus() {
         val token = authTokenStorage.getTokens()
         _authState.value = token != null
-        Log.d(LOG_TAG, String.format(LOG_TOKEN_EXISTS, token != null))
+        Firelog.d(String.format(LOG_TOKEN_EXISTS, token != null))
     }
     
+    // JD TODO: Replace with actual async loading
     private suspend fun loadOtherInitialResources() {
         delay(500) // Simulate other loading; adjust as needed
-        Log.d(LOG_TAG, LOG_LOADED_INITIAL_RESOURCES)
+        Firelog.d(LOG_LOADED_INITIAL_RESOURCES)
     }
     
     private fun loadUserPreferences() {
-        Log.d(LOG_TAG, LOG_LOADED_USER_PREFS)
+        Firelog.d(LOG_LOADED_USER_PREFS)
     }
     
     fun userLoggedIn() {
         _authState.value = true
-        Log.d(LOG_TAG, LOG_USER_LOGGED_IN)
+        Firelog.d(LOG_USER_LOGGED_IN)
     }
     
     fun userLoggedOut() {
         viewModelScope.launch {
             authTokenStorage.clearTokens()
             _authState.value = false
-            Log.d(LOG_TAG, LOG_USER_LOGGED_OUT)
+            Firelog.d(LOG_USER_LOGGED_OUT)
         }
     }
     
     companion object {
-        private const val LOG_TAG = "MainViewModel"
         private const val LOG_VIEWMODEL_INITIALIZED =
             "ViewModel Initialized: Checking auth status and loading initial data..."
         private const val LOG_AUTH_STATUS_CHECK_FAIL =

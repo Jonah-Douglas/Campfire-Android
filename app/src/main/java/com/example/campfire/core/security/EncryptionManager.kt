@@ -5,9 +5,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.security.keystore.UserNotAuthenticatedException
-import android.util.Log.d
-import android.util.Log.e
-import android.util.Log.w
+import com.example.campfire.core.common.logging.Firelog
 import java.io.IOException
 import java.security.InvalidAlgorithmParameterException
 import java.security.InvalidKeyException
@@ -84,19 +82,19 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
         try {
             keyStore = KeyStore.getInstance(androidKeyStoreName).apply { load(null) }
         } catch (e: KeyStoreException) {
-            e(LOG_TAG, LOG_KEYSTORE_EXCEPTION)
+            Firelog.e(LOG_KEYSTORE_EXCEPTION)
             throw RuntimeException(ERROR_INITIALIZE_KEYSTORE_FAILURE, e)
         } catch (e: CertificateException) {
-            e(LOG_TAG, LOG_CERTIFICATE_EXCEPTION)
+            Firelog.e(LOG_CERTIFICATE_EXCEPTION)
             throw RuntimeException(ERROR_INITIALIZE_KEYSTORE_FAILURE, e)
         } catch (e: NoSuchAlgorithmException) {
-            e(LOG_TAG, LOG_NO_SUCH_ALGORITHM_EXCEPTION)
+            Firelog.e(LOG_NO_SUCH_ALGORITHM_EXCEPTION)
             throw RuntimeException(ERROR_INITIALIZE_KEYSTORE_FAILURE, e)
         } catch (e: IOException) {
-            e(LOG_TAG, LOG_IO_EXCEPTION)
+            Firelog.e(LOG_IO_EXCEPTION)
             throw RuntimeException(ERROR_INITIALIZE_KEYSTORE_FAILURE, e)
         } catch (e: Exception) { // Catch-all for any other init errors
-            e(LOG_TAG, LOG_GENERIC_EXCEPTION)
+            Firelog.e(LOG_GENERIC_EXCEPTION)
             throw RuntimeException(ERROR_INITIALIZE_KEYSTORE_FAILURE, e)
         }
     }
@@ -109,7 +107,7 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
                     return existingKey.secretKey
                 } else {
                     // Found an entry but it's not a SecretKeyEntry (e.g., PrivateKeyEntry)
-                    w(LOG_TAG, String.format(LOG_EXISTING_INVALID_ENTRY, alias))
+                    Firelog.w(String.format(LOG_EXISTING_INVALID_ENTRY, alias))
                     deleteKey(alias) // Clean up the unexpected entry type
                     return generateSecretKey(alias) // Attempt to generate the correct type
                 }
@@ -118,13 +116,13 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
             return generateSecretKey(alias)
         } catch (e: UnrecoverableKeyException) {
             deleteKey(alias) // Attempt to clean up the problematic key
-            return null // Indicate key recovery failed
+            return null
         } catch (e: KeyStoreException) {
-            e(LOG_TAG, String.format(LOG_KEYSTORE_ERROR, alias))
+            Firelog.e(String.format(LOG_KEYSTORE_ERROR, alias))
         } catch (e: NoSuchAlgorithmException) {
-            e(LOG_TAG, String.format(LOG_MISSING_ALGORITHM, alias), e)
-        } catch (e: Exception) { // Broader catch for unexpected issues during key retrieval
-            e(LOG_TAG, String.format(LOG_GENERIC_ALIAS_EXCEPTION, alias), e)
+            Firelog.e(String.format(LOG_MISSING_ALGORITHM, alias), e)
+        } catch (e: Exception) {
+            Firelog.e(String.format(LOG_GENERIC_ALIAS_EXCEPTION, alias), e)
         }
         
         return null
@@ -147,13 +145,13 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
             val newKey = keyGenerator.generateKey()
             return newKey
         } catch (e: NoSuchAlgorithmException) {
-            e(LOG_TAG, String.format(LOG_MISSING_ALGORITHM, alias))
+            Firelog.e(String.format(LOG_MISSING_ALGORITHM, alias))
         } catch (e: NoSuchProviderException) {
-            e(LOG_TAG, String.format(LOG_ANDROIDKEYSTORE_MISSING, alias))
+            Firelog.e(String.format(LOG_ANDROIDKEYSTORE_MISSING, alias))
         } catch (e: InvalidAlgorithmParameterException) {
-            e(LOG_TAG, String.format(LOG_INVALID_ALGORITHM_PARAMETERS, alias))
-        } catch (e: Exception) { // Broader catch for unexpected issues during key generation
-            e(LOG_TAG, String.format(LOG_SECRET_KEY_GEN_FAILED, alias))
+            Firelog.e(String.format(LOG_INVALID_ALGORITHM_PARAMETERS, alias))
+        } catch (e: Exception) {
+            Firelog.e(String.format(LOG_SECRET_KEY_GEN_FAILED, alias))
             
         }
         return null
@@ -163,44 +161,42 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
         try {
             val secretKey = getSecretKey(alias)
                 ?: run {
-                    e("Key Encryption Failure", String.format(LOG_MISSING_SECRET_KEY, alias))
+                    Firelog.e(String.format(LOG_MISSING_SECRET_KEY, alias))
                     return null
                 }
             
             val cipher = Cipher.getInstance(AES_GCM_NO_PADDING)
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey) // IV is generated by the cipher
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey)
             
             val ciphertext = cipher.doFinal(data.toByteArray(Charsets.UTF_8))
             val iv = cipher.iv
-            if (iv == null || iv.isEmpty()) { // Should not happen with GCM if init is correct
-                e("IV Generation Failed", String.format(LOG_MISSING_IV, alias))
+            if (iv == null || iv.isEmpty()) {
+                Firelog.e(String.format(LOG_MISSING_IV, alias))
                 return null
             }
-            d("Encryption Successful", String.format(LOG_ENCRYPTION_SUCCESS, alias))
+            Firelog.d(String.format(LOG_ENCRYPTION_SUCCESS, alias))
             return EncryptedData(ciphertext, iv)
         } catch (e: UserNotAuthenticatedException) {
-            // This generally shouldn't happen during ENCRYPT unless the key was created
-            // with user auth required and something went wrong with Keystore state.
-            w(LOG_TAG, String.format(LOG_USER_NOT_AUTHENTICATED, alias))
+            Firelog.w(String.format(LOG_USER_NOT_AUTHENTICATED, alias))
             throw e
         } catch (e: KeyPermanentlyInvalidatedException) {
-            e(LOG_TAG, String.format(LOG_DELETING_KEY, alias))
+            Firelog.e(String.format(LOG_DELETING_KEY, alias))
             deleteKey(alias) // Clean up the invalidated key
             return null
         } catch (e: InvalidKeyException) {
-            e(LOG_TAG, String.format(LOG_INVALID_KEY, alias))
+            Firelog.e(String.format(LOG_INVALID_KEY, alias))
             deleteKey(alias) // Clean up potentially problematic key
             return null
         } catch (e: NoSuchAlgorithmException) {
-            e(LOG_TAG, String.format(LOG_NO_SUCH_ALGORITHM_FOR_AES, alias))
+            Firelog.e(String.format(LOG_NO_SUCH_ALGORITHM_FOR_AES, alias))
         } catch (e: NoSuchPaddingException) {
-            e(LOG_TAG, String.format(LOG_NO_SUCH_PADDING_FOR_AES, alias))
+            Firelog.e(String.format(LOG_NO_SUCH_PADDING_FOR_AES, alias))
         } catch (e: IllegalBlockSizeException) {
-            e(LOG_TAG, String.format(LOG_ILLEGAL_BLOCK_SIZE, alias))
+            Firelog.e(String.format(LOG_ILLEGAL_BLOCK_SIZE, alias))
         } catch (e: BadPaddingException) {
-            e(LOG_TAG, String.format(LOG_BAD_PADDING, alias))
+            Firelog.e(String.format(LOG_BAD_PADDING, alias))
         } catch (e: Exception) {
-            e(LOG_TAG, String.format(LOG_GENERIC_ENCRYPTION_ERROR, alias))
+            Firelog.e(String.format(LOG_GENERIC_ENCRYPTION_ERROR, alias))
         }
         return null
     }
@@ -209,9 +205,9 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
     override fun decrypt(encryptedData: EncryptedData, alias: String): String? {
         try {
             val secretKey =
-                getSecretKey(alias) // requireUserAuthOnGenerate is false as key should exist
+                getSecretKey(alias)
                     ?: run {
-                        e("Secret Key Missing", String.format(LOG_SECRET_KEY_MISSING, alias))
+                        Firelog.e(String.format(LOG_SECRET_KEY_MISSING, alias))
                         return null
                     }
             
@@ -221,36 +217,34 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
             
             val decryptedBytes = cipher.doFinal(encryptedData.ciphertext)
             val decryptedString = String(decryptedBytes, Charsets.UTF_8)
-            d("Decryption Successful", String.format(LOG_DECRYPTION_SUCCESS, alias))
+            Firelog.d(String.format(LOG_DECRYPTION_SUCCESS, alias))
             return decryptedString
         } catch (e: UserNotAuthenticatedException) {
-            w(LOG_TAG, String.format(LOG_USER_NOT_AUTHENTICATED, alias), e)
+            Firelog.w(String.format(LOG_USER_NOT_AUTHENTICATED, alias), e)
             throw e
         } catch (e: KeyPermanentlyInvalidatedException) {
-            e(LOG_TAG, String.format(LOG_DELETING_KEY, alias), e)
+            Firelog.e(String.format(LOG_DELETING_KEY, alias), e)
             deleteKey(alias) // Clean up the invalidated key
             return null
         } catch (e: AEADBadTagException) {
-            // This is CRITICAL for GCM. It means the data was tampered with, or the wrong key/IV was used,
-            // or the ciphertext is corrupted. The data is NOT authentic.
-            e(LOG_TAG, String.format(LOG_AUTH_TAG_MISMATCH, alias))
+            Firelog.e(String.format(LOG_AUTH_TAG_MISMATCH, alias))
             return null
         } catch (e: InvalidKeyException) {
-            e(LOG_TAG, String.format(LOG_INVALID_KEY, alias))
+            Firelog.e(String.format(LOG_INVALID_KEY, alias))
             deleteKey(alias) // Clean up potentially problematic key
             return null
         } catch (e: InvalidAlgorithmParameterException) {
-            e(LOG_TAG, String.format(LOG_DECRYPT_INVALID_ALGORITHM, alias))
+            Firelog.e(String.format(LOG_DECRYPT_INVALID_ALGORITHM, alias))
         } catch (e: NoSuchAlgorithmException) {
-            e(LOG_TAG, String.format(LOG_NO_SUCH_ALGORITHM_FOR_AES, alias))
+            Firelog.e(String.format(LOG_NO_SUCH_ALGORITHM_FOR_AES, alias))
         } catch (e: NoSuchPaddingException) {
-            e(LOG_TAG, String.format(LOG_NO_SUCH_PADDING_FOR_AES, alias))
+            Firelog.e(String.format(LOG_NO_SUCH_PADDING_FOR_AES, alias))
         } catch (e: IllegalBlockSizeException) {
-            e(LOG_TAG, String.format(LOG_ILLEGAL_BLOCK_SIZE, alias))
+            Firelog.e(String.format(LOG_ILLEGAL_BLOCK_SIZE, alias))
         } catch (e: BadPaddingException) {
-            e(LOG_TAG, String.format(LOG_BAD_PADDING, alias))
+            Firelog.e(String.format(LOG_BAD_PADDING, alias))
         } catch (e: Exception) {
-            e(LOG_TAG, String.format(LOG_GENERIC_ENCRYPTION_ERROR, alias))
+            Firelog.e(String.format(LOG_GENERIC_ENCRYPTION_ERROR, alias))
         }
         
         return null
@@ -260,16 +254,16 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
         try {
             if (keyStore.containsAlias(alias)) {
                 keyStore.deleteEntry(alias)
-                d("Delete Successful", String.format(LOG_DELETED_KEY, alias))
+                Firelog.d(String.format(LOG_DELETED_KEY, alias))
                 return true
             } else {
-                d("Key Missing", String.format(LOG_MISSING_KEY, alias))
+                Firelog.d(String.format(LOG_MISSING_KEY, alias))
                 return true
             }
         } catch (e: KeyStoreException) {
-            e(LOG_TAG, String.format(LOG_DELETE_KEY_FAIL, alias))
+            Firelog.e(String.format(LOG_DELETE_KEY_FAIL, alias))
         } catch (e: Exception) {
-            e(LOG_TAG, String.format(LOG_UNEXPECTED_DELETE_ERROR, alias))
+            Firelog.e(String.format(LOG_UNEXPECTED_DELETE_ERROR, alias))
         }
         
         return false
@@ -278,7 +272,6 @@ class AndroidKeystoreEncryptionManager @Inject constructor() : IEncryptionManage
     companion object {
         private const val AES_GCM_NO_PADDING = "AES/GCM/NoPadding"
         private const val GCM_LOG_TAG_LENGTH_BITS = 128
-        private const val LOG_TAG = "EncryptionManager"
         
         // --- Init ---
         private const val LOG_KEYSTORE_EXCEPTION =

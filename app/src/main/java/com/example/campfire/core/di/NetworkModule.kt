@@ -31,7 +31,6 @@ object NetworkModule {
         }
     }
     
-    // OkHttpClient for the TokenRefreshApiService (DOES NOT use AuthInterceptor or TokenAuthenticator)
     @Provides
     @Singleton
     @Named("TokenRefreshClient")
@@ -46,7 +45,6 @@ object NetworkModule {
             .build()
     }
     
-    // Retrofit for the TokenRefreshApiService
     @Provides
     @Singleton
     @Named("TokenRefreshRetrofit")
@@ -61,7 +59,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideTokenRefreshApiService(
-        @Named("TokenRefreshRetrofit") retrofit: Retrofit // Inject the Retrofit meant for token refresh
+        @Named("TokenRefreshRetrofit") retrofit: Retrofit
     ): TokenRefreshApiService {
         return retrofit.create(TokenRefreshApiService::class.java)
     }
@@ -96,11 +94,4 @@ object NetworkModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
-    
-    // JD TODO: Move this into its own module within the profile feature when I get to that
-//    @Provides
-//    @Singleton
-//    fun provideProfileApiService(@Named("TokenRefreshRetrofit") retrofit: Retrofit): ProfileApiService {
-//        return retrofit.create(ProfileApiService::class.java)
-//    }
 }

@@ -3,6 +3,7 @@ package com.example.campfire.auth.data.mapper
 import com.example.campfire.auth.data.remote.dto.response.UserResponse
 import com.example.campfire.auth.domain.model.User
 import com.example.campfire.core.common.exception.MappingException
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.data.mapper.DataTypeMapper
 import javax.inject.Inject
 
@@ -22,6 +23,7 @@ class UserMapper @Inject constructor(
      */
     @Throws(MappingException::class)
     fun mapToDomain(dto: UserResponse): User {
+        Firelog.v("Mapping UserResponse to User")
         val phoneNumber = dataTypeMapper.mapMandatoryField(
             dtoValue = dto.phone,
             fieldName = FieldName.PHONE,

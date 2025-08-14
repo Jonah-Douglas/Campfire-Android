@@ -1,6 +1,5 @@
 package com.example.campfire.auth.presentation
 
-import android.util.Log
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,6 +12,7 @@ import com.example.campfire.auth.domain.usecase.CompleteProfileUseCase
 import com.example.campfire.auth.domain.usecase.SendOTPUseCase
 import com.example.campfire.auth.domain.usecase.VerifyOTPUseCase
 import com.example.campfire.auth.presentation.navigation.AuthAction
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.domain.model.PhoneNumber
 import com.example.campfire.core.presentation.utils.getFlagEmojiForRegionCode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -72,9 +72,9 @@ data class CompleteProfileUIState(
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
+    private val completeProfileUseCase: CompleteProfileUseCase,
     private val sendOTPUseCase: SendOTPUseCase,
-    private val verifyOTPUseCase: VerifyOTPUseCase,
-    private val completeProfileUseCase: CompleteProfileUseCase
+    private val verifyOTPUseCase: VerifyOTPUseCase
 ) : ViewModel(), AuthContract {
     
     private val _sendOTPUIState = MutableStateFlow(SendOTPUIState())
@@ -115,10 +115,7 @@ class AuthViewModel @Inject constructor(
             val fallbackRegion = countries.firstOrNull()?.regionCode ?: "US"
             onRegionSelected(fallbackRegion)
             if (defaultRegion.isNotBlank() && !defaultCountryIsSupported) {
-                Log.w(
-                    LOG_TAG,
-                    "Device default region '$defaultRegion' is not in the configured available countries, using fallback '$fallbackRegion'."
-                )
+                Firelog.w("Device default region '$defaultRegion' is not in the configured available countries, using fallback '$fallbackRegion'.")
             }
         }
     }
@@ -164,7 +161,7 @@ class AuthViewModel @Inject constructor(
                     validationError = "Could not set country code for $regionCode"
                 )
             }
-            Log.w(LOG_TAG, "Could not get dial code for region: $regionCode")
+            Firelog.w("Could not get dial code for region: $regionCode")
         }
     }
     
@@ -203,10 +200,7 @@ class AuthViewModel @Inject constructor(
         phoneNumberE164: String?,
         isNewContext: Boolean
     ) {
-        Log.d(
-            LOG_TAG,
-            "setAuthOperationContext CALLED. isNewContext: $isNewContext. Countries BEFORE: ${_sendOTPUIState.value.availableCountries.size}"
-        )
+        Firelog.d("setAuthOperationContext CALLED. isNewContext: $isNewContext. Countries BEFORE: ${_sendOTPUIState.value.availableCountries.size}")
         currentAuthActionInternal = action
         currentFullPhoneNumberTarget = phoneNumberE164
         _phoneNumberForVerification.value = phoneNumberE164
@@ -268,10 +262,7 @@ class AuthViewModel @Inject constructor(
                 currentState.copy(currentAuthAction = action)
             }
         }
-        Log.d(
-            LOG_TAG,
-            "setAuthOperationContext END. Countries AFTER: ${_sendOTPUIState.value.availableCountries.size}"
-        )
+        Firelog.d("setAuthOperationContext END. Countries AFTER: ${_sendOTPUIState.value.availableCountries.size}")
     }
     
     // --- Send OTP ---
@@ -328,7 +319,7 @@ class AuthViewModel @Inject constructor(
             if (result is SendOTPResult.Success) {
                 val numberSentTo = currentFullPhoneNumberTarget
                 if (numberSentTo != null) {
-                    Log.d(LOG_TAG, "OTP Sent successfully to $numberSentTo, navigating.")
+                    Firelog.d("OTP Sent successfully to $numberSentTo, navigating.")
                     _authNavigationEventChannel.send(
                         AuthNavigationEvent.ToOTPVerifiedScreen(
                             phoneNumber = numberSentTo,
@@ -336,7 +327,7 @@ class AuthViewModel @Inject constructor(
                         )
                     )
                 } else {
-                    Log.e(LOG_TAG, "OTP Sent but currentFullPhoneNumberTarget is null.")
+                    Firelog.e("OTP Sent but currentFullPhoneNumberTarget is null.")
                 }
             }
         }
@@ -360,10 +351,7 @@ class AuthViewModel @Inject constructor(
         val phoneToVerify = currentFullPhoneNumberTarget
         
         if (phoneToVerify == null) {
-            Log.e(
-                "AuthViewModel",
-                "verifyOTP: currentFullPhoneNumberTarget is null. Cannot proceed."
-            )
+            Firelog.e("verifyOTP: currentFullPhoneNumberTarget is null. Cannot proceed.")
             viewModelScope.launch { _userMessageChannel.send(UserMessage.Snackbar(R.string.error_phone_invalid_generic)) }
             return
         }
@@ -424,7 +412,7 @@ class AuthViewModel @Inject constructor(
         val phoneToResend = currentFullPhoneNumberTarget
         
         if (phoneToResend == null) {
-            Log.e(LOG_TAG, "resendOTP: currentFullPhoneNumberTarget is null. Cannot proceed.")
+            Firelog.e("resendOTP: currentFullPhoneNumberTarget is null. Cannot proceed.")
             viewModelScope.launch { _userMessageChannel.send(UserMessage.Snackbar(R.string.error_phone_invalid_generic)) }
             return
         }
@@ -609,35 +597,19 @@ class AuthViewModel @Inject constructor(
     }
     
     companion object {
-        private const val LOG_TAG =
-            "AuthViewModel"
-        private const val ERROR_RATE_LIMITED_SENDING_OTP =
-            "Rate limited for sending OTP."
-        private const val ERROR_RATE_LIMITED_VERIFYING_OTP =
-            "Rate limited for verifying OTP."
-        private const val ERROR_PHONE_NUMBER_REGISTERED =
-            "This phone number is already registered."
-        private const val ERROR_PHONE_NUMBER_NOT_FOUND =
-            "This phone number is not found for login."
-        private const val ERROR_NETWORK_SEND_OTP =
-            "Network error sending OTP."
-        private const val ERROR_NETWORK_VERIFY_OTP =
-            "Network error verifying OTP."
-        private const val ERROR_NETWORK_COMPLETE_PROFILE =
-            "Network error completing profile."
-        private const val ERROR_GENERIC =
-            "Could not send OTP."
-        private const val ERROR_FIRST_NAME_MISSING =
-            "First name required."
-        private const val ERROR_LAST_NAME_MISSING =
-            "Last name required."
-        private const val ERROR_EMAIL_MISSING =
-            "Email required."
-        private const val ERROR_DOB_MISSING =
-            "Date of birth required."
-        private const val ERROR_DOB_INVALID =
-            "Date of birth is invalid."
-        private const val ERROR_COMPLETE_PROFILE_GENERIC =
-            "Could not complete profile."
+        private const val ERROR_RATE_LIMITED_SENDING_OTP = "Rate limited for sending OTP."
+        private const val ERROR_RATE_LIMITED_VERIFYING_OTP = "Rate limited for verifying OTP."
+        private const val ERROR_PHONE_NUMBER_REGISTERED = "This phone number is already registered."
+        private const val ERROR_PHONE_NUMBER_NOT_FOUND = "This phone number is not found for login."
+        private const val ERROR_NETWORK_SEND_OTP = "Network error sending OTP."
+        private const val ERROR_NETWORK_VERIFY_OTP = "Network error verifying OTP."
+        private const val ERROR_NETWORK_COMPLETE_PROFILE = "Network error completing profile."
+        private const val ERROR_GENERIC = "Could not send OTP."
+        private const val ERROR_FIRST_NAME_MISSING = "First name required."
+        private const val ERROR_LAST_NAME_MISSING = "Last name required."
+        private const val ERROR_EMAIL_MISSING = "Email required."
+        private const val ERROR_DOB_MISSING = "Date of birth required."
+        private const val ERROR_DOB_INVALID = "Date of birth is invalid."
+        private const val ERROR_COMPLETE_PROFILE_GENERIC = "Could not complete profile."
     }
 }

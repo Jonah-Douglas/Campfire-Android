@@ -1,8 +1,8 @@
 package com.example.campfire.core.data.mapper
 
-import android.util.Log
 import android.util.Patterns
 import com.example.campfire.core.common.exception.MappingException
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.domain.model.PhoneNumber
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -38,7 +38,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
             try {
                 LocalDate.parse(nonNullDateString, isoLocalDateFormatter)
             } catch (e: DateTimeParseException) {
-                Log.w(LOG_TAG, String.format(LOG_DATE_STRING_FAILURE, nonNullDateString))
+                Firelog.w(String.format(LOG_DATE_STRING_FAILURE, nonNullDateString))
                 throw MappingException(
                     message = String.format(
                         ERROR_DATE_STRING_UNMAPPABLE,
@@ -78,10 +78,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
             try {
                 PhoneNumber.fromE164(nonNullPhoneString)
             } catch (e: Exception) { // Catch a broader exception if PhoneNumber.fromE164 throws various types
-                Log.w(
-                    LOG_TAG,
-                    String.format(LOG_PHONE_STRING_FAILURE, nonNullPhoneString, e.message)
-                )
+                Firelog.w(String.format(LOG_PHONE_STRING_FAILURE, nonNullPhoneString, e.message))
                 throw MappingException(
                     message = String.format(ERROR_PHONE_STRING_UNMAPPABLE, nonNullPhoneString),
                     cause = e,
@@ -119,7 +116,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
             ) {
                 trimmedEmail
             } else {
-                Log.w(LOG_TAG, String.format(LOG_EMAIL_STRING_FAILURE, trimmedEmail, it))
+                Firelog.w(String.format(LOG_EMAIL_STRING_FAILURE, trimmedEmail, it))
                 throw MappingException(
                     message = String.format(ERROR_EMAIL_STRING_UNMAPPABLE, trimmedEmail),
                     fieldName = FieldName.EMAIL
@@ -163,10 +160,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
         return transform(dtoValue) ?: run {
             val errorMessage =
                 String.format(ERROR_MANDATORY_FIELD_UNMAPPABLE, fieldName, dtoValue ?: "null")
-            Log.e(
-                LOG_TAG,
-                String.format(LOG_MANDATORY_FIELD_FAILURE, fieldName, dtoValue ?: "null")
-            )
+            Firelog.e(String.format(LOG_MANDATORY_FIELD_FAILURE, fieldName, dtoValue ?: "null"))
             throw MappingException(
                 message = errorMessage,
                 fieldName = fieldName
@@ -191,7 +185,6 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
             "Invalid email string format: '%s'."
         
         // Logging
-        private const val LOG_TAG = "DefaultDataTypeMapper"
         private const val LOG_MANDATORY_FIELD_FAILURE =
             "Mandatory field mapping failed for '%s'. DTO value: '%s'. Throwing MappingException."
         private const val LOG_PHONE_STRING_FAILURE =

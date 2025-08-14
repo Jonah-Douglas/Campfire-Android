@@ -1,10 +1,10 @@
 package com.example.campfire.core.data.network
 
-import android.util.Log
 import com.example.campfire.auth.data.remote.TokenRefreshApiService
 import com.example.campfire.auth.data.remote.dto.request.RefreshTokenRequest
 import com.example.campfire.auth.data.remote.dto.response.ApiResponse
 import com.example.campfire.auth.data.remote.dto.response.RefreshedTokensResponse
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.data.auth.AuthTokens
 import com.example.campfire.core.data.auth.IAuthTokenManager
 import com.example.campfire.core.domain.SessionInvalidator
@@ -26,9 +26,9 @@ private const val MAX_RETRIES = 2
 
 @Singleton
 class TokenAuthenticator @Inject constructor(
+    private val sessionInvalidatorProvider: dagger.Lazy<SessionInvalidator>,
     private val tokenManager: IAuthTokenManager,
-    private val tokenRefreshApiServiceLazy: dagger.Lazy<TokenRefreshApiService>,
-    private val sessionInvalidatorProvider: dagger.Lazy<SessionInvalidator>
+    private val tokenRefreshApiServiceLazy: dagger.Lazy<TokenRefreshApiService>
 ) : Authenticator {
     
     private val authenticatorScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -40,14 +40,14 @@ class TokenAuthenticator @Inject constructor(
         get() = tokenRefreshApiServiceLazy.get()
     
     override fun authenticate(route: Route?, response: Response): Request? {
-        Log.d(LOG_TAG, String.format(LOG_AUTH_REQUIRED, response.request.url))
+        Firelog.d(String.format(LOG_AUTH_REQUIRED, response.request.url))
         
         val originalAccessTokenFromRequest =
             response.request.header(AUTHORIZATION)?.substringAfter(BEARER)
         
         // 1. Check if we should even attempt (e.g., already tried, or request didn't have token)
         if (responseCount(response) >= MAX_RETRIES) {
-            Log.w(LOG_TAG, String.format(LOG_MAX_RETRIES, response.request.url))
+            Firelog.w(String.format(LOG_MAX_RETRIES, response.request.url))
             // Consider triggering session invalidation if retries fail consistently with a valid token attempt
             if (originalAccessTokenFromRequest != null) {
                 triggerSessionInvalidation(LOG_MAX_RETRIES_REACHED)
@@ -58,7 +58,7 @@ class TokenAuthenticator @Inject constructor(
         // If the original request didn't even have an access token,
         // and it's a 401, this authenticator shouldn't handle it.
         if (originalAccessTokenFromRequest == null) {
-            Log.d(LOG_TAG, LOG_MISSING_ACCESS_TOKEN)
+            Firelog.d(LOG_MISSING_ACCESS_TOKEN)
             return null
         }
         
@@ -67,7 +67,7 @@ class TokenAuthenticator @Inject constructor(
         val currentRefreshToken = currentTokens?.refreshToken
         
         if (currentRefreshToken == null) {
-            Log.w(LOG_TAG, LOG_INVALIDATE_SESSION)
+            Firelog.w(LOG_INVALIDATE_SESSION)
             triggerSessionInvalidation(LOG_MISSING_REFRESH_TOKEN)
             return null
         }
@@ -83,17 +83,14 @@ class TokenAuthenticator @Inject constructor(
             // If a token exists in storage AND it's different from the one that caused the 401,
             // it means another thread likely succeeded in refreshing it.
             if (accessTokenInStorageAfterLock != null && accessTokenInStorageAfterLock != originalAccessTokenFromRequest) {
-                Log.d(LOG_TAG, LOG_TOKEN_ALREADY_REFRESHED)
+                Firelog.d(LOG_TOKEN_ALREADY_REFRESHED)
                 return response.request.newBuilder()
                     .header(AUTHORIZATION, "Bearer $accessTokenInStorageAfterLock")
                     .build()
             }
             
             // If accessTokenInStorageAfterLock is null (tokens were cleared) or still matches the failing one, proceed.
-            Log.d(
-                LOG_TAG,
-                String.format(LOG_ATTEMPTING_TOKEN_REFRESH, currentRefreshToken.takeLast(6))
-            )
+            Firelog.d(String.format(LOG_ATTEMPTING_TOKEN_REFRESH, currentRefreshToken.takeLast(6)))
             try {
                 // 4. Perform the token refresh (synchronously)
                 val refreshCall = tokenRefreshApiService
@@ -103,19 +100,19 @@ class TokenAuthenticator @Inject constructor(
                 try {
                     refreshAPIResponse = refreshCall.execute()
                 } catch (e: IOException) {
-                    Log.e(LOG_TAG, String.format(LOG_NETWORK_IO_EXCEPTION, e.message), e)
+                    Firelog.e(String.format(LOG_NETWORK_IO_EXCEPTION, e.message), e)
                     return null
                 }
                 
                 if (refreshAPIResponse.isSuccessful) {
                     val newAPITokens = refreshAPIResponse.body()?.data
                     if (newAPITokens?.accessToken == null) {
-                        Log.e(LOG_TAG, LOG_RESPONSE_BODY_OR_TOKEN_NULL)
+                        Firelog.e(LOG_RESPONSE_BODY_OR_TOKEN_NULL)
                         triggerSessionInvalidation(LOG_REFRESH_NO_TOKEN)
                         runBlocking { tokenManager.clearTokens() } // Clear potentially stale tokens
                         return null
                     }
-                    Log.i(LOG_TAG, LOG_REFRESH_SUCCESS)
+                    Firelog.i(LOG_REFRESH_SUCCESS)
                     
                     // Persist new tokens
                     runBlocking {
@@ -134,8 +131,7 @@ class TokenAuthenticator @Inject constructor(
                         .build()
                 } else {
                     // Refresh failed (e.g., invalid refresh token)
-                    Log.e(
-                        LOG_TAG,
+                    Firelog.e(
                         String.format(
                             LOG_REFRESH_FAILED,
                             refreshAPIResponse.code(),
@@ -144,7 +140,7 @@ class TokenAuthenticator @Inject constructor(
                     )
                     
                     if (refreshAPIResponse.code() == 401 || refreshAPIResponse.code() == 403 || refreshAPIResponse.code() == 400) {
-                        Log.w(LOG_TAG, LOG_SERVER_REJECTED)
+                        Firelog.w(LOG_SERVER_REJECTED)
                         runBlocking { tokenManager.clearTokens() }
                         triggerSessionInvalidation(LOG_TOKEN_REJECTED)
                     }
@@ -153,7 +149,7 @@ class TokenAuthenticator @Inject constructor(
                 }
             } catch (e: Exception) {
                 // Network error during refresh or other exception, do not retry request
-                Log.e(LOG_TAG, String.format(LOG_UNEXPECTED_TOKEN, e.message), e)
+                Firelog.e(String.format(LOG_UNEXPECTED_TOKEN, e.message), e)
                 triggerSessionInvalidation(String.format(LOG_REFRESH_EXCEPTION, e.message))
                 runBlocking { tokenManager.clearTokens() }
                 return null
@@ -162,17 +158,17 @@ class TokenAuthenticator @Inject constructor(
     }
     
     private fun triggerSessionInvalidation(reason: String) {
-        Log.i(LOG_TAG, String.format(LOG_TRIGGER_SESSION_INVALID, reason))
+        Firelog.i(String.format(LOG_TRIGGER_SESSION_INVALID, reason))
         authenticatorScope.launch {
             try {
                 sessionInvalidator.invalidateSessionAndTriggerLogout()
-                Log.i(LOG_TAG, LOG_SESSION_INVALIDATED)
+                Firelog.i(LOG_SESSION_INVALIDATED)
             } catch (e: Exception) {
-                Log.e(LOG_TAG, String.format(LOG_INVALIDATE_SESSION_FAILED, e.message), e)
+                Firelog.e(String.format(LOG_INVALIDATE_SESSION_FAILED, e.message), e)
                 
                 // Fallback: Cleared tokens directly via tokenManager after session invalidator failure
                 tokenManager.clearTokens()
-                Log.w(LOG_TAG, LOG_FALLBACK_CLEAR)
+                Firelog.w(LOG_FALLBACK_CLEAR)
             }
         }
     }
@@ -186,7 +182,7 @@ class TokenAuthenticator @Inject constructor(
             result++
             
             if (result > MAX_RETRIES + 5) { // Safety break for extreme chains
-                Log.e(LOG_TAG, String.format(LOG_OVER_RETRY_LIMIT, result))
+                Firelog.e(String.format(LOG_OVER_RETRY_LIMIT, result))
                 return result
             }
         }
@@ -197,7 +193,6 @@ class TokenAuthenticator @Inject constructor(
     companion object {
         private const val AUTHORIZATION = "Authorization"
         private const val BEARER = "Bearer "
-        private const val LOG_TAG = "TokenAuthenticator"
         
         // --- Authenticate ---
         private const val LOG_AUTH_REQUIRED =

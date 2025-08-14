@@ -1,6 +1,5 @@
 package com.example.campfire.auth.data.repository
 
-import android.util.Log
 import com.example.campfire.auth.data.mapper.UserMapper
 import com.example.campfire.auth.data.remote.AuthApiService
 import com.example.campfire.auth.data.remote.dto.request.CompleteProfileRequest
@@ -17,6 +16,7 @@ import com.example.campfire.auth.domain.repository.SendOTPResult
 import com.example.campfire.auth.domain.repository.VerifyOTPResult
 import com.example.campfire.auth.presentation.navigation.AuthAction
 import com.example.campfire.core.common.exception.MappingException
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.data.auth.AuthTokenStorage
 import com.example.campfire.core.data.auth.AuthTokens
 import com.example.campfire.core.domain.SessionInvalidator
@@ -46,18 +46,14 @@ class AuthRepositoryImpl @Inject constructor(
                 if (apiResponse.success) {
                     val otpData: OTPResponse? = apiResponse.data
                     if (otpData?.debugOTP != null) {
-                        Log.d(
-                            LOG_TAG,
-                            "DEV MODE (from API Response): OTP for $phoneNumber is ${otpData.debugOTP}"
-                        )
+                        Firelog.d("DEV MODE (from API Response): OTP for $phoneNumber is ${otpData.debugOTP}")
                     }
                     SendOTPResult.Success
                 } else {
                     val generalMessage = apiResponse.message
                     val apiErrorDetails = apiResponse.error
                     
-                    Log.e(
-                        LOG_TAG,
+                    Firelog.e(
                         String.format(
                             LOG_SEND_OTP_API_NOT_SUCCESSFUL,
                             false, // apiResponse.success is known to be false here
@@ -135,11 +131,7 @@ class AuthRepositoryImpl @Inject constructor(
                         backendDrivenHttpErrorMessage =
                             errorResponse?.error?.details ?: errorResponse?.message
                     } catch (parseException: Exception) {
-                        Log.w(
-                            LOG_TAG,
-                            LOG_ERROR_BODY_PARSE_FAILURE_HTTP_EXCEPTION,
-                            parseException
-                        )
+                        Firelog.w(LOG_ERROR_BODY_PARSE_FAILURE_HTTP_EXCEPTION, parseException)
                     }
                 }
                 
@@ -148,7 +140,7 @@ class AuthRepositoryImpl @Inject constructor(
                     errorCode,
                     errorBody ?: e.message()
                 )
-                Log.e(LOG_TAG, String.format(LOG_SEND_OTP_HTTP_EXCEPTION, httpErrorMessage), e)
+                Firelog.e(String.format(LOG_SEND_OTP_HTTP_EXCEPTION, httpErrorMessage), e)
                 
                 when (errorCode) {
                     400 -> SendOTPResult.InvalidPhoneNumber(message = httpErrorMessage)
@@ -166,11 +158,11 @@ class AuthRepositoryImpl @Inject constructor(
             } catch (e: IOException) {
                 val networkErrorMessage =
                     String.format(ERROR_IO_EXCEPTION_SEND_OTP, e.message)
-                Log.e(LOG_TAG, String.format(LOG_SEND_OTP_IO_EXCEPTION, e.message), e)
+                Firelog.e(String.format(LOG_SEND_OTP_IO_EXCEPTION, e.message), e)
                 SendOTPResult.Network(message = networkErrorMessage)
             } catch (e: Exception) {
                 val genericErrorMessage = String.format(ERROR_UNEXPECTED, e.message)
-                Log.e(LOG_TAG, String.format(LOG_SEND_OTP_EXCEPTION, e.message), e)
+                Firelog.e(String.format(LOG_SEND_OTP_EXCEPTION, e.message), e)
                 SendOTPResult.Generic(message = genericErrorMessage)
             }
         }
@@ -199,11 +191,7 @@ class AuthRepositoryImpl @Inject constructor(
                     try {
                         tokenStorage.saveTokens(authTokens)
                     } catch (e: Exception) {
-                        Log.e(
-                            LOG_TAG,
-                            LOG_VERIFY_OTP_TOKEN_SAVE_FAILURE,
-                            e
-                        )
+                        Firelog.e(LOG_VERIFY_OTP_TOKEN_SAVE_FAILURE, e)
                         return@withContext VerifyOTPResult.Generic(
                             message = ERROR_VERIFY_OTP_TOKEN_SAVE_FAILURE
                         )
@@ -224,8 +212,7 @@ class AuthRepositoryImpl @Inject constructor(
                     val generalMessage = apiResponse.message
                     val apiErrorDetails = apiResponse.error
                     
-                    Log.e(
-                        LOG_TAG,
+                    Firelog.e(
                         String.format(
                             LOG_VERIFY_OTP_BUSINESS_ERROR,
                             generalMessage ?: apiErrorDetails.toString()
@@ -292,8 +279,7 @@ class AuthRepositoryImpl @Inject constructor(
                         backendDrivenHttpErrorMessage =
                             errorResponse?.error?.details ?: errorResponse?.message
                     } catch (parseException: Exception) {
-                        Log.w(
-                            LOG_TAG,
+                        Firelog.w(
                             LOG_ERROR_BODY_PARSE_FAILURE_VERIFY_OTP_HTTP_EXCEPTION,
                             parseException
                         )
@@ -304,11 +290,7 @@ class AuthRepositoryImpl @Inject constructor(
                     errorCode,
                     errorBody ?: e.message()
                 )
-                Log.e(
-                    LOG_TAG,
-                    String.format(LOG_VERIFY_OTP_HTTP_EXCEPTION, httpErrorMessage),
-                    e
-                )
+                Firelog.e(String.format(LOG_VERIFY_OTP_HTTP_EXCEPTION, httpErrorMessage), e)
                 
                 when (errorCode) {
                     400 -> VerifyOTPResult.OTPIncorrect(
@@ -338,10 +320,10 @@ class AuthRepositoryImpl @Inject constructor(
                     )
                 }
             } catch (e: IOException) {
-                Log.e(LOG_TAG, LOG_VERIFY_OTP_IO_EXCEPTION, e)
+                Firelog.e(LOG_VERIFY_OTP_IO_EXCEPTION, e)
                 VerifyOTPResult.Network(message = ERROR_IO_EXCEPTION_VERIFY_OTP)
             } catch (e: Exception) {
-                Log.e(LOG_TAG, LOG_VERIFY_OTP_EXCEPTION, e)
+                Firelog.e(LOG_VERIFY_OTP_EXCEPTION, e)
                 VerifyOTPResult.Generic(
                     message = e.localizedMessage ?: ERROR_UNEXPECTED_VERIFY_OTP
                 )
@@ -360,11 +342,7 @@ class AuthRepositoryImpl @Inject constructor(
                         val user = userMapper.mapToDomain(userResponseDTO)
                         CompleteProfileResult.Success(user)
                     } catch (e: MappingException) {
-                        Log.e(
-                            LOG_TAG,
-                            String.format(LOG_COMPLETE_PROFILE_MAPPING_ERROR, e.message),
-                            e
-                        )
+                        Firelog.e(String.format(LOG_COMPLETE_PROFILE_MAPPING_ERROR, e.message), e)
                         CompleteProfileResult.Generic(
                             message = String.format(
                                 ERROR_COMPLETE_PROFILE_MAPPING,
@@ -372,19 +350,14 @@ class AuthRepositoryImpl @Inject constructor(
                             )
                         )
                     } catch (e: Exception) {
-                        Log.e(
-                            LOG_TAG,
-                            LOG_COMPLETE_PROFILE_UNEXPECTED_MAPPING_ERROR,
-                            e
-                        )
+                        Firelog.e(LOG_COMPLETE_PROFILE_UNEXPECTED_MAPPING_ERROR, e)
                         CompleteProfileResult.Generic(message = ERROR_COMPLETE_PROFILE_UNEXPECTED_MAPPING)
                     }
                 } else {
                     val generalMessage = apiResponse.message
                     val apiErrorDetails = apiResponse.error
                     
-                    Log.e(
-                        LOG_TAG,
+                    Firelog.e(
                         String.format(
                             LOG_COMPLETE_PROFILE_API_NOT_SUCCESSFUL,
                             apiResponse.success,
@@ -416,9 +389,11 @@ class AuthRepositoryImpl @Inject constructor(
                                         val fieldEnum = try {
                                             Field.valueOf(key.uppercase())
                                         } catch (_: IllegalArgumentException) {
-                                            Log.w(
-                                                LOG_TAG,
-                                                String.format(LOG_UNKNOWN_VALIDATION_FIELD, key)
+                                            Firelog.w(
+                                                String.format(
+                                                    LOG_UNKNOWN_VALIDATION_FIELD,
+                                                    key
+                                                )
                                             )
                                             null
                                         }
@@ -446,7 +421,7 @@ class AuthRepositoryImpl @Inject constructor(
                     }
                 }
             } catch (e: HttpException) {
-                Log.e(LOG_TAG, LOG_COMPLETE_PROFILE_HTTP_EXCEPTION, e)
+                Firelog.e(LOG_COMPLETE_PROFILE_HTTP_EXCEPTION, e)
                 CompleteProfileResult.Network(
                     String.format(
                         ERROR_NETWORK_GENERIC_HTTP,
@@ -454,10 +429,10 @@ class AuthRepositoryImpl @Inject constructor(
                     )
                 )
             } catch (e: IOException) {
-                Log.e(LOG_TAG, LOG_COMPLETE_PROFILE_IO_EXCEPTION, e)
+                Firelog.e(LOG_COMPLETE_PROFILE_IO_EXCEPTION, e)
                 CompleteProfileResult.Network(message = ERROR_IO_EXCEPTION_GENERIC)
             } catch (e: Exception) {
-                Log.e(LOG_TAG, LOG_COMPLETE_PROFILE_EXCEPTION, e)
+                Firelog.e(LOG_COMPLETE_PROFILE_EXCEPTION, e)
                 CompleteProfileResult.Generic(
                     message = e.localizedMessage ?: ERROR_UNEXPECTED
                 )
@@ -473,12 +448,12 @@ class AuthRepositoryImpl @Inject constructor(
             
             // 1. Attempt server-side logout
             try {
-                Log.d(LOG_TAG, LOG_LOGOUT_ATTEMPT_SERVER)
+                Firelog.d(LOG_LOGOUT_ATTEMPT_SERVER)
                 val apiResponse = apiService.logoutUser()
                 
                 if (apiResponse.success) {
                     serverLogoutSucceeded = true
-                    Log.i(LOG_TAG, LOG_LOGOUT_SERVER_SUCCESS)
+                    Firelog.i(LOG_LOGOUT_SERVER_SUCCESS)
                 } else {
                     val apiErrorDetails = apiResponse.error
                     val generalApiMessage = apiResponse.message
@@ -494,20 +469,22 @@ class AuthRepositoryImpl @Inject constructor(
                     } else {
                         generalApiMessage ?: ERROR_LOGOUT_SERVER_UNSPECIFIED_FAILURE
                     }
-                    Log.e(LOG_TAG, String.format(LOG_LOGOUT_SERVER_FAILED, serverErrorMessage))
+                    Firelog.e(String.format(LOG_LOGOUT_SERVER_FAILED, serverErrorMessage))
                 }
             } catch (e: HttpException) {
-                Log.e(
-                    LOG_TAG,
-                    String.format(LOG_LOGOUT_NETWORK_ERROR_HTTP, e.code()),
+                Firelog.e(
+                    String.format(
+                        LOG_LOGOUT_NETWORK_ERROR_HTTP,
+                        e.code()
+                    ),
                     e
                 )
                 exceptionMessage = String.format(ERROR_LOGOUT_NETWORK_HTTP, e.code())
             } catch (e: IOException) {
-                Log.e(LOG_TAG, LOG_LOGOUT_CONNECTION_ERROR, e)
+                Firelog.e(LOG_LOGOUT_CONNECTION_ERROR, e)
                 exceptionMessage = ERROR_LOGOUT_CONNECTION
             } catch (e: Exception) {
-                Log.e(LOG_TAG, LOG_LOGOUT_UNEXPECTED_ERROR_SERVER, e)
+                Firelog.e(LOG_LOGOUT_UNEXPECTED_ERROR_SERVER, e)
                 exceptionMessage =
                     String.format(ERROR_LOGOUT_UNEXPECTED_SERVER, e.localizedMessage)
             }
@@ -515,15 +492,11 @@ class AuthRepositoryImpl @Inject constructor(
             // 2. Always attempt to clear local tokens and invalidate session
             var localCleanupError: String? = null
             try {
-                Log.d(LOG_TAG, LOG_LOGOUT_CLEARING_LOCAL_DATA)
+                Firelog.d(LOG_LOGOUT_CLEARING_LOCAL_DATA)
                 tokenStorage.clearTokens()
-                Log.i(LOG_TAG, LOG_LOGOUT_LOCAL_DATA_CLEARED)
+                Firelog.i(LOG_LOGOUT_LOCAL_DATA_CLEARED)
             } catch (e: Exception) {
-                Log.e(
-                    LOG_TAG,
-                    LOG_LOGOUT_CRITICAL_CLEAR_FAILURE,
-                    e
-                )
+                Firelog.e(LOG_LOGOUT_CRITICAL_CLEAR_FAILURE, e)
                 localCleanupError = ERROR_LOGOUT_LOCAL_CLEANUP_FAILURE
             }
             
@@ -557,23 +530,16 @@ class AuthRepositoryImpl @Inject constructor(
     
     override suspend fun invalidateSessionAndTriggerLogout() {
         withContext(Dispatchers.IO) {
-            Log.w(
-                LOG_TAG,
-                LOG_INVALIDATE_SESSION
-            )
+            Firelog.w(LOG_INVALIDATE_SESSION)
             tokenStorage.clearTokens()
-            // TODO: Notify other parts of the app that user has been logged out.
-            // This could be via a SharedFlow in the repository or a dedicated SessionManager.
-            // For example: _userSessionStateFlow.emit(UserLoggedOutState)
-            Log.i(LOG_TAG, LOG_SESSION_INVALIDATED_TOKENS_CLEARED)
+            // JD TODO: Notify other parts of the app that user has been logged out.
+            Firelog.i(LOG_SESSION_INVALIDATED_TOKENS_CLEARED)
         }
     }
     
     // JD TODO: Add other methods for verifyEmail, etc.
     
     companion object {
-        private const val LOG_TAG = "AuthRepositoryImpl"
-        
         // --- General Error Messages ---
         private const val ERROR_API_FAILED_NO_DETAILS =
             "API operation failed without specific error details."
@@ -719,8 +685,7 @@ class AuthRepositoryImpl @Inject constructor(
         private const val HEADER_RETRY_AFTER = "Retry-After"
         
         // --- Keywords for error message parsing ---
-        private const val KEYWORD_NETWORK_ERROR = "Network error" // Used in LogoutResult logic
-        private const val KEYWORD_COULD_NOT_CONNECT =
-            "Could not connect" // Used in LogoutResult logic
+        private const val KEYWORD_NETWORK_ERROR = "Network error"
+        private const val KEYWORD_COULD_NOT_CONNECT = "Could not connect"
     }
 }

@@ -11,7 +11,6 @@ import javax.inject.Named
 import javax.inject.Singleton
 
 
-@Suppress("Unused")
 @Module
 @InstallIn(SingletonComponent::class)
 object CoroutineScopesModule {
