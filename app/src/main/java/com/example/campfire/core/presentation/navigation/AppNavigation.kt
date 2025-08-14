@@ -60,6 +60,7 @@ fun AppNavigation(
         LaunchedEffect(Unit) {
             authViewModel.authNavigationEvents.collect { event ->
                 when (event) {
+                    is AuthNavigationEvent.NavigateToPickCountry -> {}
                     is AuthNavigationEvent.ToOTPVerifiedScreen -> {
                         // Navigate to VerifyOTPScreen, passing the phoneNumber and the event.originatingAction
                         val currentPhoneNumber =
@@ -92,6 +93,7 @@ fun AppNavigation(
                             launchSingleTop = true
                         }
                     }
+                    
                 }
             }
         }

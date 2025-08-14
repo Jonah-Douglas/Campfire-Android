@@ -1,7 +1,7 @@
 package com.example.campfire.core.di
 
 import com.example.campfire.BuildConfig
-import com.example.campfire.auth.data.remote.TokenRefreshApiService
+import com.example.campfire.auth.data.remote.TokenRefreshAPIService
 import com.example.campfire.core.data.network.AuthInterceptor
 import com.example.campfire.core.data.network.TokenAuthenticator
 import dagger.Module
@@ -60,8 +60,8 @@ object NetworkModule {
     @Singleton
     fun provideTokenRefreshApiService(
         @Named("TokenRefreshRetrofit") retrofit: Retrofit
-    ): TokenRefreshApiService {
-        return retrofit.create(TokenRefreshApiService::class.java)
+    ): TokenRefreshAPIService {
+        return retrofit.create(TokenRefreshAPIService::class.java)
     }
     
     // This client will be used for most authenticated API calls

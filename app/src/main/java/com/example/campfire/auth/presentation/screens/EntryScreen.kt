@@ -37,6 +37,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.campfire.R
 import com.example.campfire.auth.presentation.navigation.AuthAction
+import com.example.campfire.core.common.logging.Firelog
 
 
 // JD TODO: add these
@@ -49,6 +50,8 @@ const val ANNOTATION_PRIVACY = "https://example.com/privacy" // Replace with act
 fun EntryScreen(
     onNavigateToEnterPhoneNumber: (AuthAction) -> Unit
 ) {
+    Firelog.i("Composing EntryScreen.")
+    
     val uriHandler = LocalUriHandler.current
     
     // Create legal disclaimer text
@@ -137,7 +140,14 @@ fun EntryScreen(
                                 val position = layoutResult.getOffsetForPosition(offset)
                                 legalText.getStringAnnotations(TAG_URL, position, position)
                                     .firstOrNull()?.let { annotation ->
-                                        uriHandler.openUri(annotation.item)
+                                        Firelog.i("Clicked on legal text link: ${annotation.item}")
+                                        try {
+                                            uriHandler.openUri(annotation.item)
+                                        } catch (e: Exception) {
+                                            Firelog.e("Failed to open URI: ${annotation.item}", e)
+                                            // JD TODO: Maybe show a Snackbar to the user (would need scope then)
+                                            // scope.launch { snackbarHostState.showSnackbar("Could not open link.") }
+                                        }
                                     }
                             }
                         }
@@ -147,7 +157,10 @@ fun EntryScreen(
             // --- End Info Textbox ---
             
             Button(
-                onClick = { onNavigateToEnterPhoneNumber(AuthAction.REGISTER) },
+                onClick = {
+                    Firelog.i("Create Account button clicked. Navigating with action: ${AuthAction.REGISTER}")
+                    onNavigateToEnterPhoneNumber(AuthAction.REGISTER)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colorResource(id = R.color.onPrimaryContainer),
@@ -158,7 +171,10 @@ fun EntryScreen(
             }
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(
-                onClick = { onNavigateToEnterPhoneNumber(AuthAction.LOGIN) },
+                onClick = {
+                    Firelog.i("Sign In button clicked. Navigating with action: ${AuthAction.LOGIN}")
+                    onNavigateToEnterPhoneNumber(AuthAction.LOGIN)
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(

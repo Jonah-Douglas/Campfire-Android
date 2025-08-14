@@ -5,6 +5,9 @@ import com.example.campfire.core.common.exception.MappingException
 import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.domain.model.PhoneNumber
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import javax.inject.Inject
@@ -61,6 +64,43 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
      */
     override fun mapLocalDateToString(date: LocalDate?): String? {
         return date?.format(isoLocalDateFormatter)
+    }
+    
+    override fun mapStringToLocalDateTime(dateTimeString: String?): LocalDateTime? {
+        return dateTimeString?.let {
+            try {
+                try {
+                    val offsetDateTime =
+                        OffsetDateTime.parse(it, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                    return offsetDateTime.toLocalDateTime()
+                } catch (e: DateTimeParseException) {
+                    // If no offset, try parsing directly as LocalDateTime (e.g., "2023-11-20T10:30:00")
+                    try {
+                        val zonedDateTime =
+                            ZonedDateTime.parse(it, DateTimeFormatter.ISO_ZONED_DATE_TIME)
+                        return zonedDateTime.toLocalDateTime()
+                    } catch (e2: DateTimeParseException) {
+                        // Final fallback for local date-time without zone/offset
+                        try {
+                            return LocalDateTime.parse(it, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                        } catch (e3: DateTimeParseException) {
+                            Firelog.w(
+                                "DataTypeMapper: Failed to parse string to LocalDateTime after multiple attempts: $it",
+                                e3
+                            )
+                            throw e3
+                        }
+                    }
+                }
+            } catch (e: DateTimeParseException) {
+                Firelog.w("DataTypeMapper: Failed to parse string to LocalDateTime: $it", e)
+                throw e
+            }
+        }
+    }
+    
+    override fun mapLocalDateTimeToString(dateTime: LocalDateTime?): String? {
+        return dateTime?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
     }
     
     /**

@@ -1,6 +1,6 @@
 package com.example.campfire.core.data.network
 
-import com.example.campfire.auth.data.remote.TokenRefreshApiService
+import com.example.campfire.auth.data.remote.TokenRefreshAPIService
 import com.example.campfire.auth.data.remote.dto.request.RefreshTokenRequest
 import com.example.campfire.auth.data.remote.dto.response.ApiResponse
 import com.example.campfire.auth.data.remote.dto.response.RefreshedTokensResponse
@@ -28,7 +28,7 @@ private const val MAX_RETRIES = 2
 class TokenAuthenticator @Inject constructor(
     private val sessionInvalidatorProvider: dagger.Lazy<SessionInvalidator>,
     private val tokenManager: IAuthTokenManager,
-    private val tokenRefreshApiServiceLazy: dagger.Lazy<TokenRefreshApiService>
+    private val tokenRefreshAPIServiceLazy: dagger.Lazy<TokenRefreshAPIService>
 ) : Authenticator {
     
     private val authenticatorScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -36,8 +36,8 @@ class TokenAuthenticator @Inject constructor(
     private val sessionInvalidator: SessionInvalidator
         get() = sessionInvalidatorProvider.get()
     
-    private val tokenRefreshApiService: TokenRefreshApiService
-        get() = tokenRefreshApiServiceLazy.get()
+    private val tokenRefreshApiService: TokenRefreshAPIService
+        get() = tokenRefreshAPIServiceLazy.get()
     
     override fun authenticate(route: Route?, response: Response): Request? {
         Firelog.d(String.format(LOG_AUTH_REQUIRED, response.request.url))

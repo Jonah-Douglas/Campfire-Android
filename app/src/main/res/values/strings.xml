@@ -27,6 +27,7 @@
     <string name="select_country_dialog_title">Select Country</string>
     <string name="select_country_code_description">Select the country your phone is registered in.</string>
     <string name="cancel">Cancel</string>
+    <string name="no_countries_available">No countries available.</string>
     <string name="error_generic_api">An unexpected error occurred. Please try again.</string>
 
     <!-- Verify OTP Screen -->

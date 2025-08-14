@@ -4,7 +4,12 @@ import com.google.gson.annotations.SerializedName
 
 
 /**
- * Data class for Login Response
+ * Represents the response from a successful login or initial authentication.
+ *
+ * @property accessToken The access token for authenticating subsequent API requests.
+ * @property refreshToken The refresh token used to obtain new access tokens.
+ * @property isNewUser Indicates if the user is logging in for the first time or if their profile is incomplete.
+ * @property tokenType The type of the token issued (e.g., "Bearer").
  */
 data class TokenResponse(
     @SerializedName("access_token")

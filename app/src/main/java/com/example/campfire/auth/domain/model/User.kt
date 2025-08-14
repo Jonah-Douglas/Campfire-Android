@@ -2,6 +2,7 @@ package com.example.campfire.auth.domain.model
 
 import com.example.campfire.core.domain.model.PhoneNumber
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 
 data class User(
@@ -15,6 +16,6 @@ data class User(
     val isProfileComplete: Boolean,
     val isActive: Boolean,
     val isSuperuser: Boolean,
-    val createdAt: LocalDate,
-    val updatedAt: LocalDate,
+    val createdAt: LocalDateTime,
+    val updatedAt: LocalDateTime,
 )

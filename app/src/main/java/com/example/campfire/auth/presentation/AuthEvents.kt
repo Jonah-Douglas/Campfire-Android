@@ -16,6 +16,7 @@ sealed class UserMessage {
 }
 
 sealed class AuthNavigationEvent {
+    object NavigateToPickCountry : AuthNavigationEvent()
     data class ToOTPVerifiedScreen(val phoneNumber: String, val originatingAction: AuthAction) :
         AuthNavigationEvent()
     

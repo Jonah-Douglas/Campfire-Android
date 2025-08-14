@@ -1,6 +1,6 @@
 package com.example.campfire.core.data.network
 
-import com.example.campfire.auth.data.remote.TokenRefreshApiService
+import com.example.campfire.auth.data.remote.TokenRefreshAPIService
 import com.example.campfire.core.data.auth.AuthTokenStorage
 import io.mockk.every
 import io.mockk.mockk
@@ -15,19 +15,19 @@ import org.junit.Test
 class TokenAuthenticatorTest {
     
     private lateinit var mockTokenStorage: AuthTokenStorage
-    private lateinit var mockTokenRefreshApiServiceLazy: dagger.Lazy<TokenRefreshApiService>
-    private lateinit var mockTokenRefreshApiService: TokenRefreshApiService // The actual service instance
+    private lateinit var mockTokenRefreshAPIServiceLazy: dagger.Lazy<TokenRefreshAPIService>
+    private lateinit var mockTokenRefreshAPIService: TokenRefreshAPIService // The actual service instance
     
     private lateinit var tokenAuthenticator: TokenAuthenticator
     
     @Before
     fun setUp() {
         mockTokenStorage = mockk(relaxed = true) // relaxed = true to avoid mocking all methods
-        mockTokenRefreshApiService = mockk(relaxed = true)
-        mockTokenRefreshApiServiceLazy = mockk()
-        every { mockTokenRefreshApiServiceLazy.get() } returns mockTokenRefreshApiService
+        mockTokenRefreshAPIService = mockk(relaxed = true)
+        mockTokenRefreshAPIServiceLazy = mockk()
+        every { mockTokenRefreshAPIServiceLazy.get() } returns mockTokenRefreshAPIService
         
-        tokenAuthenticator = TokenAuthenticator(mockTokenStorage, mockTokenRefreshApiServiceLazy)
+        tokenAuthenticator = TokenAuthenticator(mockTokenStorage, mockTokenRefreshAPIServiceLazy)
     }
     
     // Helper function to create a Response for testing.

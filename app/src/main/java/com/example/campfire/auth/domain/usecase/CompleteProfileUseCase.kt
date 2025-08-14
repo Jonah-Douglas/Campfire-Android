@@ -1,10 +1,10 @@
 package com.example.campfire.auth.domain.usecase
 
-import android.util.Patterns
 import com.example.campfire.auth.data.remote.dto.request.CompleteProfileRequest
 import com.example.campfire.auth.domain.repository.AuthRepository
 import com.example.campfire.auth.domain.repository.CompleteProfileResult
 import com.example.campfire.auth.domain.repository.Field
+import com.example.campfire.core.common.validation.ValidationPatterns
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -40,7 +40,7 @@ class CompleteProfileUseCase @Inject constructor(
         // 3. Validate Email
         if (email.isBlank()) {
             validationErrors[Field.EMAIL] = ERROR_EMAIL_EMPTY
-        } else if (!Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
+        } else if (!ValidationPatterns.isValidEmail(email.trim())) {
             validationErrors[Field.EMAIL] = ERROR_INVALID_EMAIL
         }
         

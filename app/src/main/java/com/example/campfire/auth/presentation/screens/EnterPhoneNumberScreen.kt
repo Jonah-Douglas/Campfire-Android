@@ -1,6 +1,5 @@
 package com.example.campfire.auth.presentation.screens
 
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -61,6 +60,7 @@ import com.example.campfire.auth.presentation.AuthViewModel
 import com.example.campfire.auth.presentation.SendOTPUIState
 import com.example.campfire.auth.presentation.UserMessage
 import com.example.campfire.auth.presentation.navigation.AuthAction
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.presentation.components.UnderlinedInputText
 import com.example.campfire.core.presentation.components.UnderlinedTextField
 import com.example.campfire.core.presentation.components.UsPhoneNumberVisualTransformation
@@ -88,7 +88,10 @@ fun PhoneNumberInputRow(
     ) {
         UnderlinedInputText(
             value = uiState.displayCountryDialCode.ifEmpty { "--" },
-            onClick = onCountryCodeClick,
+            onClick = {
+                Firelog.d("PhoneNumberInputRow: Country code clicked.")
+                onCountryCodeClick()
+            },
             modifier = Modifier
                 .weight(0.35f)
                 .padding(vertical = 8.dp),
@@ -117,6 +120,7 @@ fun PhoneNumberInputRow(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
+                    Firelog.d("PhoneNumberInputRow: Keyboard 'Done' action triggered.")
                     localFocusManager.clearFocus()
                     onDoneAction()
                 }
@@ -143,6 +147,8 @@ fun EnterPhoneNumberScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     
+    Firelog.i("Composing with AuthAction: $authAction. ViewModel hash: ${viewModel.hashCode()}")
+    
     LaunchedEffect(key1 = authAction) {
         viewModel.setAuthOperationContext(
             action = authAction,
@@ -154,10 +160,13 @@ fun EnterPhoneNumberScreen(
     
     // Handle UserMessages (Snackbars, Toasts) from ViewModel
     LaunchedEffect(Unit) {
+        Firelog.d("LaunchedEffect (UserMessages): Starting to collect user messages.")
         viewModel.userMessages.collectLatest { message ->
+            Firelog.i("Received UserMessage: ${message::class.simpleName}")
             snackbarHostState.currentSnackbarData?.dismiss()
             when (message) {
                 is UserMessage.Snackbar -> {
+                    Firelog.d("Showing Snackbar (ResId: ${message.messageResId}, Args: ${message.args.joinToString()})")
                     snackbarHostState.showSnackbar(
                         message = context.getString(
                             message.messageResId,
@@ -168,6 +177,7 @@ fun EnterPhoneNumberScreen(
                 }
                 
                 is UserMessage.SnackbarString -> {
+                    Firelog.d("Showing Snackbar (String: ${message.message.take(50)}...)")
                     snackbarHostState.showSnackbar(
                         message = message.message,
                         duration = SnackbarDuration.Short
@@ -175,6 +185,7 @@ fun EnterPhoneNumberScreen(
                 }
                 
                 is UserMessage.Toast -> {
+                    Firelog.d("Showing Toast (ResId: ${message.messageResId}, Args: ${message.args.joinToString()})")
                     Toast.makeText(
                         context,
                         context.getString(message.messageResId, *message.args.toTypedArray()),
@@ -183,6 +194,7 @@ fun EnterPhoneNumberScreen(
                 }
                 
                 is UserMessage.ToastString -> {
+                    Firelog.d("Showing Toast (String: ${message.message.take(50)}...)")
                     Toast.makeText(context, message.message, Toast.LENGTH_SHORT).show()
                 }
             }
@@ -191,14 +203,22 @@ fun EnterPhoneNumberScreen(
     
     // Handle Navigation Events from ViewModel
     LaunchedEffect(Unit) {
+        Firelog.d("LaunchedEffect (AuthNavigationEvents): Starting to collect navigation events.")
         viewModel.authNavigationEvents.collectLatest { event ->
+            Firelog.i("Received AuthNavigationEvent: ${event::class.simpleName}")
             when (event) {
                 is AuthNavigationEvent.ToOTPVerifiedScreen -> {
+                    Firelog.i("Triggering navigation to VerifyOTP. Phone (hash): ${event.phoneNumber.hashCode()}, Action: ${event.originatingAction}")
                     onNavigateToVerifyOTP(event.phoneNumber, event.originatingAction)
                 }
                 
+                is AuthNavigationEvent.NavigateToPickCountry -> {
+                    Firelog.i("Triggering navigation to PickCountry via ViewModel event.")
+                    onNavigateToPickCountry()
+                }
+                
                 else -> {
-                    Log.d("EnterPhoneNumberScreen", "Received unhandled navigation event: $event")
+                    Firelog.e("Received unhandled navigation event: $event")
                 }
             }
         }
@@ -207,11 +227,12 @@ fun EnterPhoneNumberScreen(
     LaunchedEffect(uiState.sendOTPResult) {
         val result = uiState.sendOTPResult
         if (result != null) {
-            Log.d("EnterPhoneNumberScreen", "sendOTPResult observed: $result")
+            Firelog.i("Observed sendOTPResult: ${result::class.simpleName}. Details: $result")
         }
     }
     
     BackHandler(enabled = !uiState.isLoading) {
+        Firelog.d("Back button pressed. Clearing sendOTPResult and navigating back.")
         viewModel.clearSendOTPResult()
         onNavigateBack()
     }
@@ -239,9 +260,11 @@ fun EnterPhoneNumberScreen(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
+                            Firelog.d("Opening 'What if my number changes' link.")
                             try {
                                 uriHandler.openUri("https://www.example.com/number-change-info") // Replace with actual URL
                             } catch (e: Exception) {
+                                Firelog.e("Failed to open URI for number change info.", e)
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Could not open link.")
                                 }
@@ -255,8 +278,11 @@ fun EnterPhoneNumberScreen(
                 FloatingActionButton(
                     onClick = {
                         if (!uiState.isLoading) {
+                            Firelog.i("Send Code FAB clicked. Attempting to send OTP.")
                             keyboardController?.hide()
                             viewModel.attemptSendOTP()
+                        } else {
+                            Firelog.d("Send Code FAB clicked, but UI is loading. Action ignored.")
                         }
                     },
                     containerColor = if (!uiState.isLoading) colorResource(id = R.color.onPrimaryContainer) else MaterialTheme.colorScheme.surfaceVariant,
@@ -337,6 +363,7 @@ fun EnterPhoneNumberScreen(
                     viewModel.clearErrorsOnInput() // New ViewModel function
                 },
                 onCountryCodeClick = {
+                    Firelog.d("Country code input area clicked. Hiding keyboard and navigating to PickCountry.")
                     keyboardController?.hide()
                     viewModel.clearErrorsOnInput() // New ViewModel function
                     onNavigateToPickCountry()
@@ -344,7 +371,10 @@ fun EnterPhoneNumberScreen(
                 focusRequester = nationalNumberFocusRequester,
                 onDoneAction = {
                     if (!uiState.isLoading) {
+                        Firelog.i("Phone number input 'Done' action. Attempting to send OTP.")
                         viewModel.attemptSendOTP()
+                    } else {
+                        Firelog.d("Phone number input 'Done' action, but UI is loading. Action ignored.")
                     }
                 }
             )

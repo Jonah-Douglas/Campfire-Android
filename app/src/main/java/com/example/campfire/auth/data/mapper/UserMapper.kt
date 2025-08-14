@@ -1,5 +1,6 @@
 package com.example.campfire.auth.data.mapper
 
+import com.example.campfire.auth.data.mapper.UserMapper.FieldName.FIELD_NAME_OVERALL
 import com.example.campfire.auth.data.remote.dto.response.UserResponse
 import com.example.campfire.auth.domain.model.User
 import com.example.campfire.core.common.exception.MappingException
@@ -23,51 +24,67 @@ class UserMapper @Inject constructor(
      */
     @Throws(MappingException::class)
     fun mapToDomain(dto: UserResponse): User {
-        Firelog.v("Mapping UserResponse to User")
-        val phoneNumber = dataTypeMapper.mapMandatoryField(
-            dtoValue = dto.phone,
-            fieldName = FieldName.PHONE,
-            transform = dataTypeMapper::mapStringToPhoneNumber
-        )
+        Firelog.v("Attempting to map UserResponse to User for id: ${dto.id}")
         
-        val dob = dataTypeMapper.mapMandatoryField(
-            dtoValue = dto.dateOfBirth,
-            fieldName = FieldName.DATE_OF_BIRTH,
-            transform = dataTypeMapper::mapStringToLocalDate
-        )
-        
-        val email = dataTypeMapper.mapMandatoryField(
-            dtoValue = dto.email,
-            fieldName = FieldName.EMAIL,
-            transform = dataTypeMapper::mapToDomainEmail
-        )
-        
-        val createdAtDate = dataTypeMapper.mapMandatoryField(
-            dtoValue = dto.createdAt,
-            fieldName = FieldName.CREATED_AT,
-            transform = dataTypeMapper::mapStringToLocalDate
-        )
-        
-        val updatedAtDate = dataTypeMapper.mapMandatoryField(
-            dtoValue = dto.updatedAt,
-            fieldName = FieldName.UPDATED_AT,
-            transform = dataTypeMapper::mapStringToLocalDate
-        )
-        
-        return User(
-            id = dto.id,
-            phone = phoneNumber,
-            firstName = dto.firstName,
-            lastName = dto.lastName,
-            email = email,
-            dateOfBirth = dob,
-            enableNotifications = dto.enableNotifications,
-            isProfileComplete = dto.isProfileComplete,
-            isActive = dto.isActive,
-            isSuperuser = dto.isSuperuser,
-            createdAt = createdAtDate,
-            updatedAt = updatedAtDate
-        )
+        try {
+            val phoneNumber = dataTypeMapper.mapMandatoryField(
+                dtoValue = dto.phone,
+                fieldName = FieldName.PHONE,
+                transform = dataTypeMapper::mapStringToPhoneNumber
+            )
+            
+            val dob = dataTypeMapper.mapMandatoryField(
+                dtoValue = dto.dateOfBirth,
+                fieldName = FieldName.DATE_OF_BIRTH,
+                transform = dataTypeMapper::mapStringToLocalDate
+            )
+            
+            val email = dataTypeMapper.mapMandatoryField(
+                dtoValue = dto.email,
+                fieldName = FieldName.EMAIL,
+                transform = dataTypeMapper::mapToDomainEmail
+            )
+            
+            val createdAtDateTime = dataTypeMapper.mapMandatoryField(
+                dtoValue = dto.createdAt,
+                fieldName = FieldName.CREATED_AT,
+                transform = dataTypeMapper::mapStringToLocalDateTime
+            )
+            
+            val updatedAtDateTime = dataTypeMapper.mapMandatoryField(
+                dtoValue = dto.updatedAt,
+                fieldName = FieldName.UPDATED_AT,
+                transform = dataTypeMapper::mapStringToLocalDateTime
+            )
+            
+            val user = User(
+                id = dto.id,
+                phone = phoneNumber,
+                firstName = dto.firstName,
+                lastName = dto.lastName,
+                email = email,
+                dateOfBirth = dob,
+                enableNotifications = dto.enableNotifications,
+                isProfileComplete = dto.isProfileComplete,
+                isActive = dto.isActive,
+                isSuperuser = dto.isSuperuser,
+                createdAt = createdAtDateTime,
+                updatedAt = updatedAtDateTime
+            )
+            
+            Firelog.d("Successfully mapped UserResponse to User for id: ${user.id}")
+            return user
+        } catch (e: MappingException) {
+            Firelog.e("Failed to map UserResponse to User for id: ${dto.id}", e)
+            throw e
+        } catch (e: Exception) {
+            Firelog.e("Unexpected error during UserResponse mapping for id: ${dto.id}", e)
+            throw MappingException(
+                message = "Unexpected error during UserResponse mapping",
+                fieldName = FIELD_NAME_OVERALL,
+                cause = e
+            )
+        }
     }
     
     private object FieldName {
@@ -76,6 +93,7 @@ class UserMapper @Inject constructor(
         const val EMAIL = "email"
         const val CREATED_AT = "createdAt"
         const val UPDATED_AT = "updatedAt"
+        const val FIELD_NAME_OVERALL = "UserResponse_Overall"
     }
 }
 

@@ -14,7 +14,7 @@ import retrofit2.http.POST
  * address its different security considerations, and manage unique error handling scenarios for token refresh.
  * This is often used by an OkHttp Authenticator or similar mechanisms.
  */
-interface TokenRefreshApiService {
+interface TokenRefreshAPIService {
     
     /**
      * Attempts to refresh the authentication tokens using a provided refresh token.

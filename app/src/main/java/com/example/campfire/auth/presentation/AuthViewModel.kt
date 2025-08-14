@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -101,7 +102,16 @@ class AuthViewModel @Inject constructor(
     private var currentAuthActionInternal: AuthAction = AuthAction.LOGIN
     private var currentFullPhoneNumberTarget: String? = null
     
+    // A simple hashing function for PII
+    private fun String.toSha256(): String {
+        return MessageDigest.getInstance("SHA-256")
+            .digest(this.toByteArray())
+            .fold("") { str, it -> str + "%02x".format(it) }
+            .take(16) // Take first 16 chars for brevity in logs
+    }
+    
     init {
+        Firelog.i("ViewModel initialized. Loading available countries.")
         loadAvailableCountries()
         // Set initial default country code
         val defaultRegion = Locale.getDefault().country
@@ -110,12 +120,16 @@ class AuthViewModel @Inject constructor(
         val defaultCountryIsSupported = countries.any { it.regionCode == defaultRegion }
         
         if (defaultRegion.isNotBlank() && defaultCountryIsSupported) {
+            Firelog.d("Default region '$defaultRegion' is supported. Applying.")
             onRegionSelected(defaultRegion)
         } else {
             val fallbackRegion = countries.firstOrNull()?.regionCode ?: "US"
+            Firelog.i("Applying fallback region '$fallbackRegion'.")
             onRegionSelected(fallbackRegion)
             if (defaultRegion.isNotBlank() && !defaultCountryIsSupported) {
-                Firelog.w("Device default region '$defaultRegion' is not in the configured available countries, using fallback '$fallbackRegion'.")
+                Firelog.w("Device default region '$defaultRegion' is not in the configured available countries, used fallback '$fallbackRegion'.")
+            } else if (defaultRegion.isBlank()) {
+                Firelog.d("Device default region is blank, used fallback '$fallbackRegion'.")
             }
         }
     }
@@ -124,6 +138,7 @@ class AuthViewModel @Inject constructor(
      * Loads the available countries for phone number selection.
      */
     private fun loadAvailableCountries() {
+        Firelog.d("loadAvailableCountries called.")
         val countries = PhoneNumber.getSupportedRegions().mapNotNull { regionCode ->
             val localeForRegion = Locale.Builder().setRegion(regionCode).build()
             val countryName = localeForRegion.displayCountry
@@ -137,17 +152,23 @@ class AuthViewModel @Inject constructor(
                     flagEmoji = getFlagEmojiForRegionCode(regionCode)
                 )
             } else {
+                Firelog.v("Region '$regionCode' has no dial code, excluding.")
                 null
             }
         }.sortedBy { it.name }
         
-        _sendOTPUIState.update { it.copy(availableCountries = countries) }
+        _sendOTPUIState.update {
+            Firelog.d("Updating SendOTPUIState: ${countries.size} countries loaded.")
+            it.copy(availableCountries = countries)
+        }
     }
     
     override fun onRegionSelected(regionCode: String) {
+        Firelog.i("onRegionSelected: New region '$regionCode'")
         val dialCode = PhoneNumber.getDialingCodeForRegion(regionCode)
         if (dialCode != 0) {
             _sendOTPUIState.update {
+                Firelog.d("Updating SendOTPUIState: selectedRegionCode='$regionCode', displayCountryDialCode='+${dialCode}', clearing errors.")
                 it.copy(
                     selectedRegionCode = regionCode.uppercase(Locale.ROOT),
                     displayCountryDialCode = "+$dialCode",
@@ -156,16 +177,17 @@ class AuthViewModel @Inject constructor(
                 )
             }
         } else {
+            val errorMsg = "Could not set country code for $regionCode"
             _sendOTPUIState.update {
-                it.copy(
-                    validationError = "Could not set country code for $regionCode"
-                )
+                Firelog.w("Updating SendOTPUIState: validationError='$errorMsg' for region '$regionCode'")
+                it.copy(validationError = errorMsg)
             }
             Firelog.w("Could not get dial code for region: $regionCode")
         }
     }
     
     override fun onNationalNumberInputValueChanged(newNationalNumber: TextFieldValue) {
+        Firelog.v("onNationalNumberInputValueChanged: new text length ${newNationalNumber.text.length}, selection ${newNationalNumber.selection}")
         _sendOTPUIState.update {
             it.copy(
                 nationalNumberInput = newNationalNumber,
@@ -200,12 +222,15 @@ class AuthViewModel @Inject constructor(
         phoneNumberE164: String?,
         isNewContext: Boolean
     ) {
-        Firelog.d("setAuthOperationContext CALLED. isNewContext: $isNewContext. Countries BEFORE: ${_sendOTPUIState.value.availableCountries.size}")
+        val phoneHashForLog = phoneNumberE164?.toSha256() ?: "null"
+        Firelog.i("setAuthOperationContext: action=$action, phoneE164(hash)=$phoneHashForLog, isNewContext=$isNewContext. Current countries: ${_sendOTPUIState.value.availableCountries.size}")
+        
         currentAuthActionInternal = action
         currentFullPhoneNumberTarget = phoneNumberE164
         _phoneNumberForVerification.value = phoneNumberE164
         
         if (isNewContext) {
+            Firelog.d("setAuthOperationContext: New context - resetting phone input and verify OTP states.")
             val initialPhoneNumber = if (!phoneNumberE164.isNullOrBlank()) {
                 PhoneNumber.fromE164(phoneNumberE164)
             } else {
@@ -213,8 +238,7 @@ class AuthViewModel @Inject constructor(
             }
             
             // Determine the region to select. It should ideally use the already loaded countries.
-            val currentCountries =
-                _sendOTPUIState.value.availableCountries
+            val currentCountries = _sendOTPUIState.value.availableCountries
             val defaultDeviceRegion = Locale.getDefault().country.takeIf { it.isNotBlank() } ?: "US"
             
             var regionToSelect = initialPhoneNumber?.regionCode
@@ -228,18 +252,27 @@ class AuthViewModel @Inject constructor(
                         ignoreCase = true
                     )
                 }) {
-                regionToSelect =
-                    currentCountries.first().regionCode
+                Firelog.d("Region to select '$regionToSelect' not in current countries. Defaulting to first available.")
+                regionToSelect = currentCountries.first().regionCode
             } else if (currentCountries.isEmpty() && PhoneNumber.getDialingCodeForRegion(
                     regionToSelect
                 ) == 0
             ) {
-                regionToSelect = "US"
+                Firelog.d("Region to select '$regionToSelect' not valid and no countries loaded. Defaulting to US.")
+                regionToSelect = "US" // Fallback if no countries and initial region is invalid
             }
-            
             val dialCode = PhoneNumber.getDialingCodeForRegion(regionToSelect)
             
-            _sendOTPUIState.update { currentState -> // Use .update
+            _sendOTPUIState.update { currentState ->
+                val newNationalNumberText = initialPhoneNumber?.nationalNumber?.toString()
+                    ?: currentState.nationalNumberInput.text
+                Firelog.d(
+                    "Updating SendOTPUIState for new context: action=$action, selectedRegion=$regionToSelect, dialCode=+$dialCode, nationalNum='${
+                        newNationalNumberText.take(
+                            5
+                        )
+                    }...' (len ${newNationalNumberText.length})"
+                )
                 currentState.copy(
                     currentAuthAction = action,
                     selectedRegionCode = regionToSelect.uppercase(Locale.ROOT),
@@ -257,8 +290,10 @@ class AuthViewModel @Inject constructor(
                 )
             }
             _verifyOTPUIState.value = VerifyOTPUIState()
+            Firelog.d("VerifyOTPUIState reset for new context.")
         } else {
             _sendOTPUIState.update { currentState ->
+                Firelog.d("Updating SendOTPUIState for existing context: new action=$action")
                 currentState.copy(currentAuthAction = action)
             }
         }
@@ -268,35 +303,71 @@ class AuthViewModel @Inject constructor(
     // --- Send OTP ---
     override fun attemptSendOTP() {
         val currentState = _sendOTPUIState.value
-        val countryDialCodeNumeric = currentState.displayCountryDialCode.filter { it.isDigit() }
         val nationalNum = currentState.nationalNumberInput.text
+        val phoneForLog = "${currentState.displayCountryDialCode}${nationalNum}".toSha256()
         
-        if (currentState.selectedRegionCode.isBlank() || countryDialCodeNumeric.isBlank()) {
-            _sendOTPUIState.update { it.copy(validationError = "Please select a country code.") }
+        Firelog.i("attemptSendOTP: Triggered for phone (hash): $phoneForLog, action: $currentAuthActionInternal")
+        
+        if (currentState.selectedRegionCode.isBlank() || currentState.displayCountryDialCode.isBlank()) {
+            val errorMsg = "Please select a country code."
+            Firelog.w("attemptSendOTP: Validation failed - $errorMsg")
+            _sendOTPUIState.update {
+                Firelog.d("Updating SendOTPUIState: validationError='$errorMsg'")
+                it.copy(validationError = errorMsg)
+            }
+            viewModelScope.launch { _userMessageChannel.send(UserMessage.SnackbarString(errorMsg)) }
             return
         }
         if (nationalNum.isBlank()) {
-            _sendOTPUIState.update { it.copy(validationError = "Please enter your phone number.") }
+            val errorMsg = "Please enter your phone number."
+            Firelog.w("attemptSendOTP: Validation failed - $errorMsg")
+            _sendOTPUIState.update {
+                Firelog.d("Updating SendOTPUIState: validationError='$errorMsg'")
+                it.copy(validationError = errorMsg)
+            }
+            viewModelScope.launch { _userMessageChannel.send(UserMessage.SnackbarString(errorMsg)) }
             return
         }
-        
+        val countryDialCodeNumeric = currentState.displayCountryDialCode.filter { it.isDigit() }
         val constructedPhoneNumber = PhoneNumber.fromCountryCodeAndNationalNumber(
             countryCodeString = countryDialCodeNumeric,
             nationalNumberString = nationalNum
         )
         
         if (!constructedPhoneNumber.isValid) {
+            val errorMsg = "The phone number entered is not valid."
+            Firelog.w("attemptSendOTP: Validation failed - $errorMsg for input (hash): $phoneForLog. Parsed: $constructedPhoneNumber")
             _sendOTPUIState.update {
+                Firelog.d("Updating SendOTPUIState: validationError='$errorMsg', parsedPhoneNumber=$constructedPhoneNumber")
                 it.copy(
-                    validationError = "The phone number entered is not valid.",
+                    validationError = errorMsg,
                     parsedPhoneNumber = constructedPhoneNumber
                 )
             }
+            viewModelScope.launch { _userMessageChannel.send(UserMessage.SnackbarString(errorMsg)) }
             return
         }
         
-        // Number is valid according to libphonenumber, proceed to send OTP
+        // Number is valid, get E.164 format
+        val e164NumberToSend = constructedPhoneNumber.e164Format
+        if (e164NumberToSend == null) {
+            val errorMsg =
+                "Could not format valid phone number for sending OTP." // Should be R.string
+            Firelog.e("attemptSendOTP: Phone number $constructedPhoneNumber marked valid but e164Format is null! Input (hash): $phoneForLog")
+            _sendOTPUIState.update {
+                Firelog.d("Updating SendOTPUIState: validationError='$errorMsg'")
+                it.copy(validationError = errorMsg, isLoading = false)
+            }
+            viewModelScope.launch { _userMessageChannel.send(UserMessage.SnackbarString(errorMsg)) }
+            return
+        }
+        
+        // Log the HASH of the number being sent
+        val e164HashForLog = e164NumberToSend.toSha256()
+        Firelog.i("attemptSendOTP: Phone number is valid. Proceeding to send OTP to E.164 (hash): $e164HashForLog")
+        
         _sendOTPUIState.update {
+            Firelog.d("Updating SendOTPUIState: isLoading=true, clearing errors, setting parsedPhoneNumber=$constructedPhoneNumber")
             it.copy(
                 isLoading = true,
                 validationError = null,
@@ -305,30 +376,40 @@ class AuthViewModel @Inject constructor(
             )
         }
         
-        val e164NumberToSend = constructedPhoneNumber.e164Format!!
         currentFullPhoneNumberTarget = e164NumberToSend
         _phoneNumberForVerification.value = e164NumberToSend
         
         viewModelScope.launch {
+            Firelog.d("Calling sendOTPUseCase for E.164 (hash): $e164HashForLog, action: $currentAuthActionInternal")
             val result = sendOTPUseCase(
-                phoneNumber = constructedPhoneNumber.e164Format!!,
+                phoneNumber = constructedPhoneNumber.e164Format,
                 authAction = currentAuthActionInternal
             )
-            _sendOTPUIState.update { it.copy(isLoading = false, sendOTPResult = result) }
+            Firelog.i("sendOTPUseCase returned: ${result::class.simpleName}")
+            
+            _sendOTPUIState.update {
+                Firelog.d("Updating SendOTPUIState: isLoading=false, sendOTPResult=${result::class.simpleName}")
+                it.copy(isLoading = false, sendOTPResult = result)
+            }
             
             if (result is SendOTPResult.Success) {
-                val numberSentTo = currentFullPhoneNumberTarget
-                if (numberSentTo != null) {
-                    Firelog.d("OTP Sent successfully to $numberSentTo, navigating.")
-                    _authNavigationEventChannel.send(
-                        AuthNavigationEvent.ToOTPVerifiedScreen(
-                            phoneNumber = numberSentTo,
-                            originatingAction = currentAuthActionInternal
+                Firelog.i("OTP Sent successfully to E.164 (hash): $e164HashForLog. Navigating to OTP verification.")
+                _authNavigationEventChannel.send(
+                    AuthNavigationEvent.ToOTPVerifiedScreen(
+                        phoneNumber = e164NumberToSend, // Pass raw number to next screen
+                        originatingAction = currentAuthActionInternal
+                    )
+                )
+                Firelog.d("Sent AuthNavigationEvent: ToOTPVerifiedScreen for E.164 (hash): $e164HashForLog")
+            } else if (result is SendOTPResult.Generic) {
+                viewModelScope.launch {
+                    _userMessageChannel.send(
+                        UserMessage.SnackbarString(
+                            result.message ?: ERROR_GENERIC
                         )
                     )
-                } else {
-                    Firelog.e("OTP Sent but currentFullPhoneNumberTarget is null.")
                 }
+                Firelog.w("SendOTPResult.Generic: ${result.message}")
             }
         }
     }
@@ -339,7 +420,8 @@ class AuthViewModel @Inject constructor(
     
     // --- Verify OTP ---
     override fun onOTPCodeChanged(newCode: TextFieldValue) {
-        if (newCode.text.length <= 6 && newCode.text.all { it.isDigit() }) {
+        Firelog.v("onOTPCodeChanged: new OTP length ${newCode.text.length}, text (last char): '${newCode.text.lastOrNull()}'")
+        if (newCode.text.length <= OTP_LENGTH && newCode.text.all { it.isDigit() }) {
             _verifyOTPUIState.update {
                 it.copy(otpCode = newCode, verifyOTPResult = null)
             }
@@ -494,7 +576,7 @@ class AuthViewModel @Inject constructor(
         _completeProfileUIState.update {
             val dob = try {
                 LocalDate.parse(newDobInput.text, DateTimeFormatter.ISO_LOCAL_DATE)
-            } catch (e: DateTimeParseException) {
+            } catch (_: DateTimeParseException) {
                 null
             }
             it.copy(
@@ -597,6 +679,8 @@ class AuthViewModel @Inject constructor(
     }
     
     companion object {
+        private const val OTP_LENGTH = 6
+        
         private const val ERROR_RATE_LIMITED_SENDING_OTP = "Rate limited for sending OTP."
         private const val ERROR_RATE_LIMITED_VERIFYING_OTP = "Rate limited for verifying OTP."
         private const val ERROR_PHONE_NUMBER_REGISTERED = "This phone number is already registered."

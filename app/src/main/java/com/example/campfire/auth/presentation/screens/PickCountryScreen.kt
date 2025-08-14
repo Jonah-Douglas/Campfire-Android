@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -39,6 +40,7 @@ import com.example.campfire.auth.presentation.AuthContract
 import com.example.campfire.auth.presentation.AuthViewModel
 import com.example.campfire.auth.presentation.CountryUIModel
 import com.example.campfire.auth.presentation.SendOTPUIState
+import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.presentation.utils.CampfireTheme
 import com.example.campfire.core.presentation.utils.getFlagEmojiForRegionCode
 
@@ -50,20 +52,35 @@ fun PickCountryScreen(
     onCountrySelectedAndNavigateBack: (regionCode: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
+    Firelog.i("Composing PickCountryScreen. ViewModel hash: ${viewModel.hashCode()}")
+    
     val uiState by viewModel.sendOTPUIState.collectAsState()
     val availableCountries = uiState.availableCountries
+    
+    LaunchedEffect(availableCountries) {
+        Firelog.d("Available countries updated. Count: ${availableCountries.size}")
+        if (availableCountries.isNotEmpty()) {
+            Firelog.v(
+                "First few available countries: ${
+                    availableCountries.take(5).joinToString { it.name }
+                }"
+            )
+        }
+    }
     
     val topLevelRegionCodes: List<String> = listOf("US", "AU", "CA", "GB")
     
     val topLevelCountries = availableCountries
         .filter { topLevelRegionCodes.contains(it.regionCode) }
         .sortedBy { topLevelRegionCodes.indexOf(it.regionCode) }
+        .also { Firelog.v("Processed top-level countries. Count: ${it.size}") }
     
     val alphabetizedCountries = availableCountries
         .sortedBy { it.name }
-    
+        .also { Firelog.v("Processed alphabetized countries. Count: ${it.size}") }
     
     BackHandler {
+        Firelog.d("Back button pressed. Navigating back.")
         onNavigateBack()
     }
     
@@ -78,7 +95,10 @@ fun PickCountryScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
+                        IconButton(onClick = {
+                            Firelog.d("TopAppBar navigation icon (Back) clicked. Navigating back.")
+                            onNavigateBack()
+                        }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.back)
@@ -101,7 +121,10 @@ fun PickCountryScreen(
                 items(topLevelCountries, key = { "top_${it.regionCode}" }) { country ->
                     CountryRow(
                         country = country,
-                        onClick = { onCountrySelectedAndNavigateBack(country.regionCode) }
+                        onClick = {
+                            Firelog.i("Top-level country selected: ${country.name} (${country.regionCode}). Navigating back.")
+                            onCountrySelectedAndNavigateBack(country.regionCode)
+                        }
                     )
                     HorizontalDivider()
                 }
@@ -116,11 +139,28 @@ fun PickCountryScreen(
             items(alphabetizedCountries, key = { it.regionCode }) { country ->
                 CountryRow(
                     country = country,
-                    onClick = { onCountrySelectedAndNavigateBack(country.regionCode) }
+                    onClick = {
+                        Firelog.i("Alphabetized country selected: ${country.name} (${country.regionCode}). Navigating back.")
+                        onCountrySelectedAndNavigateBack(country.regionCode)
+                    }
                 )
                 
                 if (country != alphabetizedCountries.lastOrNull()) {
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                }
+            }
+            if (topLevelCountries.isEmpty() && alphabetizedCountries.isEmpty()) {
+                item {
+                    LaunchedEffect(Unit) {
+                        Firelog.w("Both top-level and alphabetized country lists are empty. Displaying empty state.")
+                    }
+                    Text(
+                        text = stringResource(R.string.no_countries_available),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }

@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,6 +54,7 @@ import com.example.campfire.auth.presentation.AuthViewModel
 import com.example.campfire.auth.presentation.UserMessage
 import com.example.campfire.auth.presentation.VerifyOTPUIState
 import com.example.campfire.auth.presentation.navigation.AuthAction
+import com.example.campfire.core.common.logging.Firelog
 import kotlinx.coroutines.flow.collectLatest
 
 
@@ -63,6 +66,8 @@ fun VerifyOTPScreen(
     viewModel: AuthContract = hiltViewModel<AuthViewModel>(),
     onNavigateBack: () -> Unit,
 ) {
+    Firelog.i("Composing VerifyOTPScreen. AuthAction: $authActionFromNav, Phone (hash): ${phoneNumberFromNav.hashCode()}, VM Hash: ${viewModel.hashCode()}")
+    
     val verifyUIState by viewModel.verifyOTPUIState.collectAsState()
     val sendUIState by viewModel.sendOTPUIState.collectAsState()
     val currentDisplayPhoneNumber by viewModel.currentPhoneNumberForVerification.collectAsState()
@@ -70,9 +75,11 @@ fun VerifyOTPScreen(
     
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     
     // Initialize ViewModel with Nav Args
     LaunchedEffect(key1 = authActionFromNav, key2 = phoneNumberFromNav) {
+        Firelog.d("LaunchedEffect: Initializing ViewModel context. Action: $authActionFromNav, Phone (hash): ${phoneNumberFromNav.hashCode()}")
         viewModel.setAuthOperationContext(
             action = authActionFromNav,
             phoneNumberE164 = phoneNumberFromNav,
@@ -82,29 +89,67 @@ fun VerifyOTPScreen(
     
     // Observe UserMessages from ViewModel
     LaunchedEffect(Unit) {
+        Firelog.d("LaunchedEffect: Starting to collect UserMessages.")
         viewModel.userMessages.collectLatest { message ->
+            Firelog.i("Received UserMessage: ${message::class.simpleName}")
+            snackbarHostState.currentSnackbarData?.dismiss()
             when (message) {
-                is UserMessage.Snackbar -> snackbarHostState.showSnackbar(
-                    context.getString(message.messageResId, *message.args.toTypedArray())
-                )
+                is UserMessage.Snackbar -> {
+                    val msgString =
+                        context.getString(message.messageResId, *message.args.toTypedArray())
+                    Firelog.d(
+                        "Showing Snackbar (ResId: ${message.messageResId}, Args: ${message.args.joinToString()}, Message: ${
+                            msgString.take(
+                                70
+                            )
+                        }...)"
+                    )
+                    snackbarHostState.showSnackbar(
+                        message = msgString,
+                        duration = SnackbarDuration.Short
+                    )
+                }
                 
-                is UserMessage.Toast -> Toast.makeText(
-                    context,
-                    context.getString(message.messageResId, *message.args.toTypedArray()),
-                    Toast.LENGTH_SHORT
-                ).show()
+                is UserMessage.Toast -> {
+                    val msgString =
+                        context.getString(message.messageResId, *message.args.toTypedArray())
+                    Firelog.d(
+                        "Showing Toast (ResId: ${message.messageResId}, Args: ${message.args.joinToString()}, Message: ${
+                            msgString.take(
+                                70
+                            )
+                        }...)"
+                    )
+                    Toast.makeText(context, msgString, Toast.LENGTH_SHORT).show()
+                }
                 
-                is UserMessage.SnackbarString -> snackbarHostState.showSnackbar(message.message)
-                is UserMessage.ToastString -> Toast.makeText(
-                    context,
-                    message.message,
-                    Toast.LENGTH_SHORT
-                ).show()
+                is UserMessage.SnackbarString -> {
+                    Firelog.d("Showing Snackbar (String: ${message.message.take(70)}...)")
+                    snackbarHostState.showSnackbar(
+                        message = message.message,
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                
+                is UserMessage.ToastString -> {
+                    Firelog.d("Showing Toast (String: ${message.message.take(70)}...)")
+                    Toast.makeText(context, message.message, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
     
+    // Log UI state changes for OTP verification for easier debugging
+    LaunchedEffect(verifyUIState) {
+        Firelog.v("verifyUIState changed: isLoading=${verifyUIState.isLoading}, otpCode='${verifyUIState.otpCode.text}', result=${verifyUIState.verifyOTPResult?.javaClass?.simpleName}")
+    }
+    // Log UI state changes for OTP sending
+    LaunchedEffect(sendUIState) {
+        Firelog.v("sendUIState changed (for resend): isLoading=${sendUIState.isLoading}, result=${sendUIState.sendOTPResult?.javaClass?.simpleName}")
+    }
+    
     BackHandler(enabled = !verifyUIState.isLoading) {
+        Firelog.d("Back button pressed. Navigating back. verifyLoading=${verifyUIState.isLoading}")
         onNavigateBack()
     }
     
@@ -118,7 +163,11 @@ fun VerifyOTPScreen(
             FloatingActionButton(
                 onClick = {
                     if (fabEnabled) {
+                        Firelog.i("Verify OTP FAB clicked. OTP: '${verifyUIState.otpCode.text}'. Attempting to verify.")
+                        keyboardController?.hide()
                         viewModel.verifyOTP()
+                    } else {
+                        Firelog.d("Verify OTP FAB clicked, but not enabled. isLoading=${verifyUIState.isLoading}, otpLength=${verifyUIState.otpCode.text.length}")
                     }
                 },
                 containerColor = if (fabEnabled) colorResource(id = R.color.onPrimaryContainer) else MaterialTheme.colorScheme.surfaceVariant,
@@ -169,7 +218,10 @@ fun VerifyOTPScreen(
             
             OutlinedTextField(
                 value = verifyUIState.otpCode,
-                onValueChange = viewModel::onOTPCodeChanged,
+                onValueChange = { newValue ->
+                    Firelog.v("OTP code changed. New length: ${newValue.text.length}. Current value: '${newValue.text}'")
+                    viewModel.onOTPCodeChanged(newValue)
+                },
                 label = { Text(stringResource(R.string.otp_code_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 singleLine = true,
