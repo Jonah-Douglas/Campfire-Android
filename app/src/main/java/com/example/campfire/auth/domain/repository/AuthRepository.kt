@@ -1,9 +1,9 @@
 package com.example.campfire.auth.domain.repository
 
+import com.example.campfire.auth.data.local.AuthTokens
 import com.example.campfire.auth.data.remote.dto.request.CompleteProfileRequest
 import com.example.campfire.auth.domain.model.User
 import com.example.campfire.auth.presentation.navigation.AuthAction
-import com.example.campfire.core.data.auth.AuthTokens
 
 
 /**

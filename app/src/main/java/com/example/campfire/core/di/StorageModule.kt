@@ -1,7 +1,7 @@
 package com.example.campfire.core.di
 
-import com.example.campfire.core.data.auth.AuthTokenStorage
-import com.example.campfire.core.data.auth.IAuthTokenManager
+import com.example.campfire.auth.data.local.AuthTokenStorage
+import com.example.campfire.auth.data.local.IAuthTokenManager
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

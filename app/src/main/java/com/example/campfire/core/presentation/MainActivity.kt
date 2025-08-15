@@ -30,7 +30,7 @@ import dagger.hilt.android.AndroidEntryPoint
  * 3.  Defining a custom exit animation for the splash screen.
  * 4.  Setting the main content view using Jetpack Compose via [setContent].
  * 5.  Applying the application-wide [CampfireTheme].
- * 6.  Observing application-level state from [MainViewModel] (e.g., data readiness,
+ * 6.  Observing application-level state from [GlobalStateViewModel] (e.g., data readiness,
  *     authentication state, entry completion status).
  * 7.  Initializing and providing the [AppNavigation] Composable with the necessary state
  *     and callbacks to manage the application's navigation flow.
@@ -43,7 +43,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     
     // ViewModel responsible for holding and managing UI-related data for MainActivity.
-    private val mainViewModel: MainViewModel by viewModels()
+    private val globalStateViewModel: GlobalStateViewModel by viewModels()
     
     /**
      * Called when the activity is first created. This is where most initialization should go:
@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
         // Keep the splash screen visible until initial state is loaded
-        splashScreen.setKeepOnScreenCondition { !mainViewModel.isDataReady.value }
+        splashScreen.setKeepOnScreenCondition { !globalStateViewModel.isDataReady.value }
         
         // Custom splash screen exit animation
         splashScreen.setOnExitAnimationListener { splashScreenViewProvider ->
@@ -79,16 +79,16 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             CampfireTheme { // Apply the custom application theme
-                val isDataReady by mainViewModel.isDataReady.collectAsState()
-                val isAuthenticated by mainViewModel.authState.collectAsState()
+                val isDataReady by globalStateViewModel.isDataReady.collectAsState()
+                val isAuthenticated by globalStateViewModel.authState.collectAsState()
                 val navController = rememberNavController()
-                val isEntryComplete by mainViewModel.isEntryComplete.collectAsState()
+                val isEntryComplete by globalStateViewModel.isEntryComplete.collectAsState()
                 
                 if (isDataReady) {
                     AppNavigation(
                         isAuthenticated = isAuthenticated,
-                        onAuthSuccess = { mainViewModel.userLoggedIn() },
-                        onLogout = { mainViewModel.userLoggedOut() },
+                        onAuthSuccess = { globalStateViewModel.userLoggedIn() },
+                        onLogout = { globalStateViewModel.userLoggedOut() },
                         navController = navController,
                         isEntryComplete = isEntryComplete
                     )

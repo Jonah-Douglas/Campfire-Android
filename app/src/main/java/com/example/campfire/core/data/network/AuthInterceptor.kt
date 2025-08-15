@@ -1,7 +1,7 @@
 package com.example.campfire.core.data.network
 
+import com.example.campfire.auth.data.local.IAuthTokenManager
 import com.example.campfire.core.common.logging.Firelog
-import com.example.campfire.core.data.auth.IAuthTokenManager
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException

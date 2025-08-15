@@ -38,7 +38,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 @Singleton
 class UserPreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : UserPreferencesSource {
     /**
      * Internal object holding [Preferences.Key] definitions for type-safe access
      * to DataStore.
@@ -63,7 +63,7 @@ class UserPreferencesRepository @Inject constructor(
      * occur during DataStore reads (e.g., disk issues) and emits `false` as a fallback
      * in such cases, logging the error. For more critical errors, it rethrows them.
      */
-    val isEntryComplete: Flow<Boolean> = context.dataStore.data
+    override val isEntryComplete: Flow<Boolean> = context.dataStore.data
         .catch { exception ->
             if (exception is IOException) {
                 Firelog.e("Error reading IS_ENTRY_COMPLETE preference", exception)

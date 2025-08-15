@@ -1,12 +1,12 @@
 package com.example.campfire.core.data.network
 
+import com.example.campfire.auth.data.local.AuthTokens
+import com.example.campfire.auth.data.local.IAuthTokenManager
 import com.example.campfire.auth.data.remote.TokenRefreshAPIService
 import com.example.campfire.auth.data.remote.dto.request.RefreshTokenRequest
 import com.example.campfire.auth.data.remote.dto.response.ApiResponse
 import com.example.campfire.auth.data.remote.dto.response.RefreshedTokensResponse
 import com.example.campfire.core.common.logging.Firelog
-import com.example.campfire.core.data.auth.AuthTokens
-import com.example.campfire.core.data.auth.IAuthTokenManager
 import com.example.campfire.core.data.network.TokenAuthenticator.Companion.MAX_RETRIES
 import com.example.campfire.core.domain.SessionInvalidator
 import kotlinx.coroutines.CoroutineScope

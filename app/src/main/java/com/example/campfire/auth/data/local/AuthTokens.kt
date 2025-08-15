@@ -1,4 +1,4 @@
-package com.example.campfire.core.data.auth
+package com.example.campfire.auth.data.local
 
 
 /**

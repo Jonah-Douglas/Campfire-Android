@@ -1,5 +1,7 @@
 package com.example.campfire.auth.data.repository
 
+import com.example.campfire.auth.data.local.AuthTokenStorage
+import com.example.campfire.auth.data.local.AuthTokens
 import com.example.campfire.auth.data.mapper.UserMapper
 import com.example.campfire.auth.data.remote.AuthApiService
 import com.example.campfire.auth.data.remote.dto.request.CompleteProfileRequest
@@ -17,8 +19,6 @@ import com.example.campfire.auth.domain.repository.VerifyOTPResult
 import com.example.campfire.auth.presentation.navigation.AuthAction
 import com.example.campfire.core.common.exception.MappingException
 import com.example.campfire.core.common.logging.Firelog
-import com.example.campfire.core.data.auth.AuthTokenStorage
-import com.example.campfire.core.data.auth.AuthTokens
 import com.example.campfire.core.domain.SessionInvalidator
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken

@@ -1,6 +1,7 @@
-package com.example.campfire.core.data.auth
+package com.example.campfire.auth.data.local
 
 import android.content.SharedPreferences
+import android.util.Base64
 import androidx.core.content.edit
 import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.security.EncryptedData
@@ -104,8 +105,8 @@ class AuthTokenStorage @Inject constructor(
                 val storable = gson.fromJson(storedJson, StoredEncryptedTokens::class.java)
                 
                 val ciphertext =
-                    android.util.Base64.decode(storable.ciphertext, android.util.Base64.DEFAULT)
-                val iv = android.util.Base64.decode(storable.iv, android.util.Base64.DEFAULT)
+                    Base64.decode(storable.ciphertext, Base64.DEFAULT)
+                val iv = Base64.decode(storable.iv, Base64.DEFAULT)
                 
                 Firelog.d("Attempting to decrypt tokens using alias: $AUTH_TOKEN_ENCRYPTION_ALIAS")
                 val decryptedJson = encryptionManager.decrypt(
@@ -158,13 +159,13 @@ class AuthTokenStorage @Inject constructor(
             encryptedData?.let {
                 Firelog.d("Tokens encrypted successfully. Preparing to store.")
                 val storable = StoredEncryptedTokens(
-                    ciphertext = android.util.Base64.encodeToString(
+                    ciphertext = Base64.encodeToString(
                         it.ciphertext,
-                        android.util.Base64.DEFAULT
+                        Base64.DEFAULT
                     ),
-                    iv = android.util.Base64.encodeToString(
+                    iv = Base64.encodeToString(
                         it.initializationVector,
-                        android.util.Base64.DEFAULT
+                        Base64.DEFAULT
                     )
                 )
                 
