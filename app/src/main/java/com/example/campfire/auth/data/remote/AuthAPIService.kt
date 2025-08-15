@@ -40,7 +40,8 @@ interface AuthApiService {
     @POST("auth/logout")
     suspend fun logoutUser(): ApiResponse<Unit>
     
-    // JD TODO: Update the email calls here to be similar to the phone verification code process (if I want them at all)
+    // JD TODO: Update the email calls here to be similar to the phone verification code process (OTP, only once_
+    //      -Make sure I create subscribe and unsubscribe functionality
 //    @POST("auth/verify-email")
 //    fun verifyEmail(@Body request: VerifyEmailRequest): ApiResponse<TokenResponse>>
 }

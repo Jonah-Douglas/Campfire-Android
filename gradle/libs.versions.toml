@@ -5,7 +5,7 @@ kotlin = "2.2.0"
 
 # --- AndroidX Core & Security ---
 androidxSecurityCrypto = "1.1.0"
-coreKtx = "1.16.0"
+coreKtx = "1.17.0"
 datastore = "1.1.7"
 
 # --- AndroidX Activity & Lifecycle ---
@@ -16,9 +16,9 @@ lifecycleViewmodelKtx = "2.9.2"
 
 # --- Compose ---
 androidxMaterialIcons = "1.7.8"
-composeBom = "2025.07.00"
+composeBom = "2025.08.00"
 core-splashscreen = "1.0.1"
-foundationLayout = "1.8.3"
+foundationLayout = "1.9.0"
 material = "1.12.0"
 navigationCompose = "2.9.3"
 

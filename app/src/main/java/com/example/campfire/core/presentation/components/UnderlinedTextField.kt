@@ -160,9 +160,9 @@ class UsPhoneNumberVisualTransformation : VisualTransformation {
 @Composable
 fun UnderlinedTextField(
     value: TextFieldValue,
+    modifier: Modifier = Modifier,
     onValueChange: (TextFieldValue) -> Unit,
     hint: String? = null,
-    modifier: Modifier = Modifier,
     textStyle: TextStyle = LocalTextStyle.current.copy(fontSize = 18.sp),
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,

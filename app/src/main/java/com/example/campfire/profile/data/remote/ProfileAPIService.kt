@@ -1,8 +1,9 @@
 package com.example.campfire.profile.data.remote
 
 
+@Suppress("unused")
 interface ProfileApiService {
-    // JD TODO: Remove these once I get new resources connected in FastAPI
+    // JD TODO: Update these once I get new resources connected in FastAPI
 //    @GET("profile/{userId}")
 //    fun getUserProfile(@Path("userId") userId: String): Call<ApiResponse<UserProfileResponse>>
 //

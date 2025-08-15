@@ -28,6 +28,7 @@ import java.util.Locale
  *                        This is `null` if parsing failed. This property is private to encapsulate
  *                        libphonenumber details but used by internal logic.
  */
+@Suppress("unused")
 data class PhoneNumber(
     val e164Format: String?,
     private val parsedNumber: Phonenumber.PhoneNumber?

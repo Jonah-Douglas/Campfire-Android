@@ -5,7 +5,9 @@ import com.example.campfire.auth.data.remote.TokenRefreshAPIService
 import com.example.campfire.core.data.network.AuthInterceptor
 import com.example.campfire.core.data.network.TokenAuthenticator
 import com.example.campfire.core.di.NetworkModule.provideAuthenticatedOkHttpClient
+import com.example.campfire.core.di.NetworkModule.provideRetrofit
 import com.example.campfire.core.di.NetworkModule.provideTokenRefreshOkHttpClient
+import com.example.campfire.core.di.NetworkModule.provideTokenRefreshRetrofit
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,10 +27,10 @@ import javax.inject.Singleton
  * necessary components like interceptors and API service interfaces.
  *
  * This module configures two main sets of network clients:
- * 1. A client specifically for token refresh operations ([TokenRefreshClient], [TokenRefreshRetrofit]).
+ * 1. A client specifically for token refresh operations ([provideTokenRefreshOkHttpClient], [provideTokenRefreshRetrofit]).
  *    This client is minimal and does not include the [AuthInterceptor] or [TokenAuthenticator]
  *    to avoid circular dependencies or issues during the refresh process itself.
- * 2. A primary client for general authenticated API calls ([AuthenticatedClient], [AuthenticatedRetrofit]).
+ * 2. A primary client for general authenticated API calls ([provideAuthenticatedOkHttpClient], [provideRetrofit]).
  *    This client is equipped with an [AuthInterceptor] to add tokens to outgoing requests
  *    and a [TokenAuthenticator] to handle automatic token refresh on 401 errors.
  *

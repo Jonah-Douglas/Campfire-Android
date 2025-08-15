@@ -14,24 +14,17 @@
     <string name="otp_verified_proceed_profile">OTP Verified</string>
 
     <!-- Enter Phone Number Screen -->
-    <string name="create_account">Create Account</string>
-    <string name="sign_in">Sign In</string>
     <string name="enter_your_phone_number_prompt">What\'s your phone \nnumber?</string>
     <string name="send_code_as_text_info">Campfire will send you a text with a verification code. Message and data rates may apply.</string>
-    <string name="phone_number_label">10-digit phone number</string>
     <string name="send_code_button">Send Code</string>
-    <string name="navigate_back">Navigate back</string>
-    <string name="otp_sent">OTP Sent!</string>
 
     <!-- Pick Country Picker Dialog Screen -->
     <string name="select_country_dialog_title">Select Country</string>
     <string name="select_country_code_description">Select the country your phone is registered in.</string>
-    <string name="cancel">Cancel</string>
     <string name="no_countries_available">No countries available.</string>
     <string name="error_generic_api">An unexpected error occurred. Please try again.</string>
 
     <!-- Verify OTP Screen -->
-    <string name="verify_phone_number_title">Verify Phone Number</string>
     <string name="enter_your_verification_code">Enter your verification code</string>
     <string name="otp_code_label">6-digit code</string>
     <string name="verify_button">Verify</string>
@@ -41,17 +34,11 @@
     <!-- Auth Errors -->
     <string name="error_otp_incorrect">The OTP entered is incorrect.</string>
     <string name="error_otp_expired">The OTP has expired. Please request a new one.</string>
-    <string name="error_network_default">A network error occurred. Please check your connection.</string>
-    <string name="error_generic_default">An unexpected error occurred.</string>
-    <string name="error_rate_limited_default">Too many attempts. Please try again later.</string>
-    <string name="error_user_already_exists_default">An account with this phone number already exists. Try logging in instead.</string>
-    <string name="error_user_not_found_default">No account found with this phone number. Please check the number or create an account.</string>
     <string name="error_phone_invalid_generic">Invalid phone number.</string>
     <string name="error_email_already_exists">Email already exists.</string>
     <string name="error_validation_check_fields">Incorrect user input.</string>
     <string name="profile_completed_success">Profile complete.</string>
     <string name="phone_icon_description">Phone icon</string>
     <string name="what_if_my_number_changes_link">What if my number changes?</string>
-    <string name="error_user_already_exists_login_instead">This number is already registered. Try logging in or use a different number.</string>
 
 </resources>

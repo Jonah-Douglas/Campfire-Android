@@ -72,9 +72,9 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun UnderlinedInputText(
     value: String,
+    modifier: Modifier = Modifier,
     hint: String? = null,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
     textStyle: TextStyle = LocalTextStyle.current.copy(fontSize = 18.sp),
     underlineColor: Color = MaterialTheme.colorScheme.primary, // Default underline color
     isError: Boolean = false,

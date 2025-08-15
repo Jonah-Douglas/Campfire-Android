@@ -5,7 +5,7 @@
 This is the Android client application for **Campfire**, an event aggregation and exploration
 platform. It allows users to discover events, connect with others based on shared event interests,
 and communicate around those events by interacting with
-the [Campfire Backend API](link_to_your_backend_repo_if_public_or_relevant).
+the [Campfire Backend API](https://github.com/Jonah-Douglas/Campfire).
 
 **Core MVP Vision (Client Perspective):**
 
@@ -144,7 +144,7 @@ project_root/
 * Android SDK (Target SDK Version - e.g., 34)
 * JDK 17 or newer
 * An Android device or emulator (API level - e.g., 26+)
-* The [Campfire Backend API](link_to_your_backend_repo_or_documentation) must be running and
+* The [Campfire Backend API](https://github.com/Jonah-Douglas/Campfire) must be running and
   accessible.
 
 ### Installation & Setup
