@@ -106,31 +106,32 @@ The project follows a feature-based organization for modularity and clarity:
 
 project_root/<br>
 ├── com.example.campfire/<br>
-│&emsp;├── auth/ # Feature: Authentication & User Onboarding<br>
-│&emsp;│&emsp;├── data/<br>
-│&emsp;│&emsp;│&emsp;├── local/ # Local data sources (e.g., AuthTokenStorage)<br>
-│&emsp;│&emsp;│&emsp;├── mapper/ # DTO to Domain model mappers<br>
-│&emsp;│&emsp;│&emsp;├── remote/ # Remote API services & DTOs<br>
-│&emsp;│&emsp;│&emsp;└── repository/ # Repository implementations<br>
-│&emsp;│&emsp;├── di/ # Hilt DI modules for auth feature<br>
-│&emsp;│&emsp;├── domain/<br>
-│&emsp;│&emsp;│&emsp;├── model/ # Domain models specific to auth<br>
-│&emsp;│&emsp;│&emsp;├── repository/ # Repository interfaces<br>
-│&emsp;│&emsp;│&emsp;└── usecase/ # Business logic / use cases<br>
-│&emsp;│&emsp;└── presentation/ # ViewModels, Composables, Navigation<br>
-│&emsp;│<br>
-│&emsp;│&emsp;# ... other feature folders (e.g., events, friends, messaging) ...<br>
-│&emsp;│<br>
-│&emsp;├── core/ # SHARED: Global configuration, utilities, base classes<br>
-│&emsp;│&emsp;├── common/ # Common utilities (logging, exceptions, validation)<br>
-│&emsp;│&emsp;├── data/ # Shared data components (network setup, preferences)<br>
-│&emsp;│&emsp;├── di/ # Core DI modules (Network, Storage, Security, etc.)<br>
-│&emsp;│&emsp;├── domain/ # Core domain models/logic (e.g., SessionInvalidator)<br>
-│&emsp;│&emsp;├── presentation/ # Global UI components, navigation, GlobalStateViewModel<br>
-│&emsp;│&emsp;└── security/ # Encryption utilities<br>
-│&emsp;├── tests/ # Unit and Integration tests, mirroring app structure<br>
-│&emsp;├── ...<br>
-│&emsp;└── README.md<br>
+│&emsp;&nbsp;&nbsp;├── auth/ # Feature: Authentication & User Onboarding<br>
+│&emsp;&nbsp;│&emsp;&nbsp;├── data/<br>
+│&emsp;&nbsp;│&emsp;&nbsp;│&emsp;&nbsp;├── local/ # Local data sources (e.g., AuthTokenStorage)<br>
+│&emsp;&nbsp;│&emsp;&nbsp;│&emsp;&nbsp;├── mapper/ # DTO to Domain model mappers<br>
+│&emsp;&nbsp;│&emsp;&nbsp;│&emsp;&nbsp;├── remote/ # Remote API services & DTOs<br>
+│&emsp;&nbsp;│&emsp;&nbsp;│&emsp;&nbsp;└── repository/ # Repository implementations<br>
+│&emsp;&nbsp;│&emsp;&nbsp;├── di/ # Hilt DI modules for auth feature<br>
+│&emsp;&nbsp;│&emsp;&nbsp;├── domain/<br>
+│&emsp;&nbsp;│&emsp;&nbsp;│&emsp;&nbsp;├── model/ # Domain models specific to auth<br>
+│&emsp;&nbsp;│&emsp;&nbsp;│&emsp;&nbsp;├── repository/ # Repository interfaces<br>
+│&emsp;&nbsp;│&emsp;&nbsp;│&emsp;&nbsp;└── usecase/ # Business logic / use cases<br>
+│&emsp;&nbsp;│&emsp;&nbsp;└── presentation/ # ViewModels, Composables, Navigation<br>
+│&emsp;&nbsp;│<br>
+│&emsp;&nbsp;├──&emsp;&nbsp;# ... other feature folders (e.g., events, friends, messaging) ...<br>
+│&emsp;&nbsp;│<br>
+│&emsp;&nbsp;├── core/ # SHARED: Global configuration, utilities, base classes<br>
+│&emsp;&nbsp;│&emsp;&nbsp;├── common/ # Common utilities (logging, exceptions, validation)<br>
+│&emsp;&nbsp;│&emsp;&nbsp;├── data/ # Shared data components (network setup, preferences)<br>
+│&emsp;&nbsp;│&emsp;&nbsp;├── di/ # Core DI modules (Network, Storage, Security, etc.)<br>
+│&emsp;&nbsp;│&emsp;&nbsp;├── domain/ # Core domain models/logic (e.g., SessionInvalidator)<br>
+│&emsp;&nbsp;│&emsp;&nbsp;├── presentation/ # Global UI components, navigation,
+GlobalStateViewModel<br>
+│&emsp;&nbsp;│&emsp;&nbsp;└── security/ # Encryption utilities<br>
+│&emsp;&nbsp;├── tests/ # Unit and Integration tests, mirroring app structure<br>
+│&emsp;&nbsp;├── ...<br>
+│&emsp;&nbsp;└── README.md<br>
 
 ---
 
