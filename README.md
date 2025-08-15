@@ -104,34 +104,33 @@ This Android application is built using modern Android development practices and
 
 The project follows a feature-based organization for modularity and clarity:
 
-project_root/
-├── com.example.campfire/
-│ ├── auth/ # Feature: Authentication & User Onboarding
-│ │ ├── data/
-│ │ │ ├── local/ # Local data sources (e.g., AuthTokenStorage)
-│ │ │ ├── mapper/ # DTO to Domain model mappers
-│ │ │ ├── remote/ # Remote API services & DTOs
-│ │ │ └── repository/ # Repository implementations
-│ │ ├── di/ # Hilt DI modules for auth feature
-│ │ ├── domain/
-│ │ │ ├── model/ # Domain models specific to auth
-│ │ │ ├── repository/ # Repository interfaces
-│ │ │ └── usecase/ # Business logic / use cases
-│ │ ├── presentation/ # ViewModels, Composables, Navigation
-│ │ │
-│ │ # ... other feature folders (e.g., events, friends, messaging) ...
-│ │ │
-│ │ └── core/ # SHARED: Global configuration, utilities, base classes
-│ ├── common/ # Common utilities (logging, exceptions, validation)
-│ ├── data/ # Shared data components (network setup, preferences)
-│ ├── di/ # Core DI modules (Network, Storage, Security, etc.)
-│ ├── domain/ # Core domain models/logic (e.g., SessionInvalidator)
-│ ├── presentation/ # Global UI components, navigation, GlobalStateViewModel
-│ └── security/ # Encryption utilities
-│ ├── tests/ # Unit and Integration tests, mirroring app structure
-│ ├── auth/...
-│ ├── ...
-│ └── README.md
+project_root/<br>
+├── com.example.campfire/<br>
+│&emsp;├── auth/ # Feature: Authentication & User Onboarding<br>
+│&emsp;│&emsp;├── data/<br>
+│&emsp;│&emsp;│&emsp;├── local/ # Local data sources (e.g., AuthTokenStorage)<br>
+│&emsp;│&emsp;│&emsp;├── mapper/ # DTO to Domain model mappers<br>
+│&emsp;│&emsp;│&emsp;├── remote/ # Remote API services & DTOs<br>
+│&emsp;│&emsp;│&emsp;└── repository/ # Repository implementations<br>
+│&emsp;│&emsp;├── di/ # Hilt DI modules for auth feature<br>
+│&emsp;│&emsp;├── domain/<br>
+│&emsp;│&emsp;│&emsp;├── model/ # Domain models specific to auth<br>
+│&emsp;│&emsp;│&emsp;├── repository/ # Repository interfaces<br>
+│&emsp;│&emsp;│&emsp;└── usecase/ # Business logic / use cases<br>
+│&emsp;│&emsp;└── presentation/ # ViewModels, Composables, Navigation<br>
+│&emsp;│<br>
+│&emsp;│&emsp;# ... other feature folders (e.g., events, friends, messaging) ...<br>
+│&emsp;│<br>
+│&emsp;├── core/ # SHARED: Global configuration, utilities, base classes<br>
+│&emsp;│&emsp;├── common/ # Common utilities (logging, exceptions, validation)<br>
+│&emsp;│&emsp;├── data/ # Shared data components (network setup, preferences)<br>
+│&emsp;│&emsp;├── di/ # Core DI modules (Network, Storage, Security, etc.)<br>
+│&emsp;│&emsp;├── domain/ # Core domain models/logic (e.g., SessionInvalidator)<br>
+│&emsp;│&emsp;├── presentation/ # Global UI components, navigation, GlobalStateViewModel<br>
+│&emsp;│&emsp;└── security/ # Encryption utilities<br>
+│&emsp;├── tests/ # Unit and Integration tests, mirroring app structure<br>
+│&emsp;├── ...<br>
+│&emsp;└── README.md<br>
 
 ---
 
