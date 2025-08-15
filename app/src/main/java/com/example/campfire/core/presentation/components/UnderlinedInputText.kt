@@ -27,29 +27,47 @@ import androidx.compose.ui.unit.sp
 
 
 /**
- * A composable that displays a text input field with an underline, suitable for brief inputs.
- * It appears as clickable text, and can optionally display a hint when the value is empty,
- * a leading icon, and a dropdown arrow.
+ * A Composable that displays text with an underline, simulating an input field appearance.
+ * It's designed to be clickable, making it suitable for scenarios where tapping the "field"
+ * should trigger an action, such as opening a dialog or a picker (e.g., for date or country selection).
  *
- * This component is typically used for displaying information that, when clicked,
- * triggers an action like opening a picker or a dialog (e.g., country code selection).
+ * The component can display:
+ * - A primary [value] string.
+ * - A [hint] string if the [value] is empty.
+ * - An optional [leadingIcon].
+ * - An optional [showDropdownArrow] at the end.
  *
- * @param value The current text value to display.
+ * The text content ([value] or [hint]) is aligned to the end (right) of the available space
+ * within the row, especially when a [leadingIcon] is present or when no leading icon is
+ * present but a dropdown arrow is shown.
+ *
+ * Error states are visually indicated by changing the color of the underline and potentially
+ * the tint of the text and icons, based on the [isError] and [errorColor] parameters.
+ *
+ * @param value The current text value to display in the component.
  * @param hint An optional hint text to display if [value] is empty.
- * @param onClick The lambda to be invoked when this component is clicked.
- * @param modifier The [Modifier] to be applied to this component.
+ *             The hint will be styled with a secondary color.
+ * @param onClick The lambda function to be invoked when this component is clicked.
+ * @param modifier The [Modifier] to be applied to the root `Column` of this component.
+ *                 Defaults to [Modifier].
  * @param textStyle The [TextStyle] to be applied to the displayed [value] or [hint].
  *                  Defaults to [LocalTextStyle.current] with a font size of 18.sp.
- * @param underlineColor The [Color] of the underline when the component is not in an error state.
+ *                  The color from this style will be used unless overridden by error state or hint display.
+ * @param underlineColor The [Color] of the underline when the component is not in an error state ([isError] is false).
  *                       Defaults to [MaterialTheme.colorScheme.primary].
  * @param isError A boolean indicating whether the input is currently in an error state.
- *                If true, the [errorColor] will be used for the underline and text/icon tint.
- * @param errorColor The [Color] of the underline and text/icon tint when [isError] is true.
+ *                If true, the [errorColor] will be used for the underline. The text and icon
+ *                tints will also use [errorColor] unless their style explicitly defines a color.
+ * @param errorColor The [Color] to use for the underline, text, and icon tint when [isError] is true.
  *                   Defaults to [MaterialTheme.colorScheme.error].
  * @param showDropdownArrow A boolean indicating whether to display a dropdown arrow icon
- *                          at the end of the component. Defaults to false.
- * @param leadingIcon An optional composable to display at the beginning of the input field.
- * @param dropdownArrowContentDescription Content description for the dropdown arrow.
+ *                          (e.g., [Icons.Filled.ArrowDropDown]) at the end of the component.
+ *                          Defaults to `false`.
+ * @param leadingIcon An optional Composable lambda that renders an icon or other content
+ *                    at the beginning of the input field. If provided, the main text content
+ *                    will be pushed towards the end.
+ * @param dropdownArrowContentDescription The content description string for the dropdown arrow icon,
+ *                                        used for accessibility. Defaults to "Select".
  */
 @Composable
 fun UnderlinedInputText(
@@ -58,69 +76,81 @@ fun UnderlinedInputText(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     textStyle: TextStyle = LocalTextStyle.current.copy(fontSize = 18.sp),
-    underlineColor: Color = MaterialTheme.colorScheme.primary,
+    underlineColor: Color = MaterialTheme.colorScheme.primary, // Default underline color
     isError: Boolean = false,
-    errorColor: Color = MaterialTheme.colorScheme.error,
+    errorColor: Color = MaterialTheme.colorScheme.error, // Default error color
     showDropdownArrow: Boolean = false,
     leadingIcon: (@Composable () -> Unit)? = null,
-    dropdownArrowContentDescription: String = "Select"
+    dropdownArrowContentDescription: String = "Select" // Default for accessibility
 ) {
-    val effectiveUnderlineColor = underlineColor
-    val contentColor = textStyle.color.takeOrElse { MaterialTheme.colorScheme.onSurface }
-    val hintColor = MaterialTheme.colorScheme.onSurfaceVariant
+    // Determine the color for the underline based on the error state
+    val effectiveUnderlineColor = if (isError) errorColor else underlineColor
+    
+    // Determine the color for text content (value, icons)
+    // Use errorColor if in error state, otherwise use color from textStyle or default surface color
+    val currentContentColor = if (isError) {
+        errorColor
+    } else {
+        textStyle.color.takeOrElse { MaterialTheme.colorScheme.onSurface }
+    }
+    
+    // Color for the hint text
+    val hintColor = if (isError) {
+        errorColor // Hint also takes error color if applicable
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     
     Column(modifier = modifier.clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Leading Icon
+            // Display Leading Icon if provided
             if (leadingIcon != null) {
-                // The Spacer that was here is removed to allow icon to be at the start
-                Spacer(Modifier.width(8.dp))
-                leadingIcon() // The icon composable itself should handle its own tinting
-                Spacer(Modifier.width(8.dp)) // Space after the icon
+                Spacer(Modifier.width(8.dp)) // Padding before the icon
+                leadingIcon()
+                Spacer(Modifier.width(8.dp)) // Padding after the icon
             }
             
-            // This Spacer will take up all available space if a leading icon exists,
-            // pushing the text and dropdown arrow to the right.
-            // If no leading icon, the text will naturally be on the left.
+            // This Spacer pushes the text to the right if a leadingIcon is present.
+            // If no leadingIcon, this Spacer is not added, allowing text to start from the left
+            // unless it's pushed by its own weight modifier later.
             if (leadingIcon != null) {
                 Spacer(Modifier.weight(1f))
             }
             
-            // Text or Hint - No weight here, it will take its natural size.
-            // Text alignment is set to End.
-            if (value.isEmpty() && hint != null) {
+            // Display Text
+            // Text is aligned to the End.
+            val textToShow = value.ifEmpty { hint }
+            if (textToShow != null) {
                 Text(
-                    text = hint,
-                    style = textStyle.copy(color = hintColor, textAlign = TextAlign.End),
-                    // Add a weight only if there's NO leading icon, to push arrow to the end
-                    modifier = if (leadingIcon == null) Modifier.weight(1f) else Modifier
-                )
-            } else {
-                Text(
-                    text = value,
-                    style = textStyle.copy(color = contentColor, textAlign = TextAlign.End),
+                    text = textToShow,
+                    style = textStyle.copy(
+                        color = if (value.isEmpty() && hint != null) hintColor else currentContentColor,
+                        textAlign = TextAlign.End
+                    ),
                     // Add a weight only if there's NO leading icon, to push arrow to the end
                     modifier = if (leadingIcon == null) Modifier.weight(1f) else Modifier
                 )
             }
             
-            // Dropdown Arrow
+            // Display Dropdown Arrow if requested
             if (showDropdownArrow) {
                 Spacer(Modifier.width(4.dp)) // Small space before the arrow
                 Icon(
                     imageVector = Icons.Filled.ArrowDropDown,
                     contentDescription = dropdownArrowContentDescription,
-                    tint = contentColor,
+                    tint = currentContentColor,
                     modifier = Modifier.size(24.dp)
                 )
             }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(4.dp)) // Space between the text row and the underline
+        
+        // Underline
         HorizontalDivider(
-            color = effectiveUnderlineColor,
+            color = effectiveUnderlineColor, // Color changes based on error state
             thickness = 1.dp
         )
     }
