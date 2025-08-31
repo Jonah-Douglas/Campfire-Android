@@ -1,20 +1,19 @@
 package com.example.campfire.auth.presentation
 
 import androidx.compose.ui.text.input.TextFieldValue
-import com.example.campfire.auth.presentation.navigation.AuthAction
+import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.core.presentation.UserMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 
 /**
  * Defines the contract between the Authentication UI (Screens) and the ViewModel.
- * It combines actions that can be triggered from the UI and the state that the UI observes.
  */
 interface AuthContract : IAuthScreenActions, IAuthScreenState
 
 /**
  * Defines actions that the UI can trigger on the ViewModel.
- * Implementations of these methods in the ViewModel should include appropriate logging.
  */
 interface IAuthScreenActions {
     
@@ -66,9 +65,16 @@ interface IAuthScreenActions {
      * Clears the result of the last send OTP operation.
      * Useful for resetting UI state after navigating away or handling the result.
      */
+    fun handleAuthAction(action: AuthAction)
+    
+    /**
+     * Clears the result of the last send OTP operation.
+     * Useful for resetting UI state after navigating away or handling the result.
+     */
     fun clearSendOTPResult()
     
     // --- OTP Verification ---
+    
     /**
      * Called when the OTP code input value changes.
      * @param newCode The new TextFieldValue for the OTP code.
@@ -86,48 +92,6 @@ interface IAuthScreenActions {
      * Clears the result of the last verify OTP operation.
      */
     fun clearVerifyOTPResult()
-    
-    // --- Profile Completion ---
-    
-    /**
-     * Called when the first name input value changes.
-     * @param newName The new TextFieldValue for the first name.
-     */
-    fun onFirstNameChanged(newName: TextFieldValue)
-    
-    /**
-     * Called when the last name input value changes.
-     * @param newName The new TextFieldValue for the last name.
-     */
-    fun onLastNameChanged(newName: TextFieldValue)
-    
-    /**
-     * Called when the email input value changes.
-     * @param newEmail The new TextFieldValue for the email.
-     */
-    fun onEmailChanged(newEmail: TextFieldValue)
-    
-    /**
-     * Called when the date of birth input value changes.
-     * @param newDobInput The new TextFieldValue for the date of birth.
-     */
-    fun onDateOfBirthInputChanged(newDobInput: TextFieldValue)
-    
-    /**
-     * Called when the user changes the notification preference.
-     * @param enabled True if notifications are enabled, false otherwise.
-     */
-    fun onEnableNotificationsChanged(enabled: Boolean)
-    
-    /**
-     * Called when the user attempts to complete their profile.
-     */
-    fun completeUserProfile()
-    
-    /**
-     * Clears the result of the last complete profile operation.
-     */
-    fun clearCompleteProfileResult()
 }
 
 /**
@@ -144,11 +108,6 @@ interface IAuthScreenState {
      * UI state related to the OTP verification process.
      */
     val verifyOTPUIState: StateFlow<VerifyOTPUIState>
-    
-    /**
-     * UI state related to the profile completion process.
-     */
-    val completeProfileUIState: StateFlow<CompleteProfileUIState>
     
     /**
      * The phone number (E.164 format) for which an OTP has been successfully sent (or UserAlreadyExists occurred)

@@ -1,8 +1,8 @@
 package com.example.campfire.auth.data.remote
 
 import com.example.campfire.auth.data.remote.dto.request.RefreshTokenRequest
-import com.example.campfire.auth.data.remote.dto.response.ApiResponse
 import com.example.campfire.auth.data.remote.dto.response.RefreshedTokensResponse
+import com.example.campfire.core.data.remote.dto.response.APIResponse
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.POST
@@ -30,5 +30,5 @@ interface TokenRefreshAPIService {
      *         in its `data` field, or an error if the refresh fails.
      */
     @POST("auth/refresh")
-    fun refreshAuthToken(@Body request: RefreshTokenRequest): Call<ApiResponse<RefreshedTokensResponse>>
+    fun refreshAuthToken(@Body request: RefreshTokenRequest): Call<APIResponse<RefreshedTokensResponse>>
 }

@@ -3,13 +3,9 @@ package com.example.campfire.auth.presentation.navigation
 import androidx.navigation.NamedNavArgument
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example.campfire.auth.domain.model.AuthAction
 import com.example.campfire.core.presentation.navigation.NavigationDestination
 
-
-enum class AuthAction {
-    LOGIN,
-    REGISTER
-}
 
 /**
  * Defines the screen destinations within the authentication feature graph.
@@ -45,14 +41,6 @@ sealed class AuthScreen(
             "${VERIFY_OTP}/$phoneNumber/${authAction.name}"
     }
     
-    data object ProfileSetupName : AuthScreen(PROFILE_SETUP_NAME_ROUTE)
-    
-    data object ProfileSetupEmail : AuthScreen(PROFILE_SETUP_EMAIL_ROUTE)
-    
-    data object ProfileSetupDob : AuthScreen(PROFILE_SETUP_DOB_ROUTE)
-    
-    data object ProfileSetupNotifs : AuthScreen(PROFILE_SETUP_NOTIFS_ROUTE)
-    
     companion object Args {
         const val AUTH_ACTION = "authAction"
         const val PHONE_NUMBER = "phoneNumber"
@@ -62,9 +50,6 @@ sealed class AuthScreen(
         private const val ENTER_PHONE_NUMBER_ROUTE = "enter_phone_number"
         private const val PICK_COUNTRY_ROUTE = "pick_country"
         private const val VERIFY_OTP = "verify_otp"
-        private const val PROFILE_SETUP_NAME_ROUTE = "profile_setup_name"
-        private const val PROFILE_SETUP_EMAIL_ROUTE = "profile_setup_email"
-        private const val PROFILE_SETUP_DOB_ROUTE = "profile_setup_dob"
-        private const val PROFILE_SETUP_NOTIFS_ROUTE = "profile_setup_notifs"
+        private const val PROFILE_SETUP_INTRO_ROUTE = "profile_setup_intro"
     }
 }

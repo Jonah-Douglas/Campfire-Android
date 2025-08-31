@@ -53,14 +53,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.campfire.R
-import com.example.campfire.auth.domain.repository.SendOTPResult
+import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.auth.domain.model.SendOTPResult
 import com.example.campfire.auth.presentation.AuthContract
 import com.example.campfire.auth.presentation.AuthNavigationEvent
 import com.example.campfire.auth.presentation.AuthViewModel
 import com.example.campfire.auth.presentation.SendOTPUIState
-import com.example.campfire.auth.presentation.UserMessage
-import com.example.campfire.auth.presentation.navigation.AuthAction
 import com.example.campfire.core.common.logging.Firelog
+import com.example.campfire.core.presentation.UserMessage
 import com.example.campfire.core.presentation.components.UnderlinedInputText
 import com.example.campfire.core.presentation.components.UnderlinedTextField
 import com.example.campfire.core.presentation.components.UsPhoneNumberVisualTransformation
@@ -207,7 +207,7 @@ fun EnterPhoneNumberScreen(
         viewModel.authNavigationEvents.collectLatest { event ->
             Firelog.i("Received AuthNavigationEvent: ${event::class.simpleName}")
             when (event) {
-                is AuthNavigationEvent.ToOTPVerifiedScreen -> {
+                is AuthNavigationEvent.ToOTPVerificationScreen -> {
                     Firelog.i("Triggering navigation to VerifyOTP. Phone (hash): ${event.phoneNumber.hashCode()}, Action: ${event.originatingAction}")
                     onNavigateToVerifyOTP(event.phoneNumber, event.originatingAction)
                 }
@@ -352,8 +352,7 @@ fun EnterPhoneNumberScreen(
                     textAlign = TextAlign.Start
                 )
             } else {
-                // JD TODO: Maybe animate the appearance.
-                Spacer(modifier = Modifier.height(errorTextHeight + 8.dp)) // height of text + padding
+                Spacer(modifier = Modifier.height(errorTextHeight + 8.dp))
             }
             
             PhoneNumberInputRow(

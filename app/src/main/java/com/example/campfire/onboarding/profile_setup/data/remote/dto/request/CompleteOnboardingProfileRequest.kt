@@ -1,13 +1,12 @@
-package com.example.campfire.auth.data.remote.dto.request
+package com.example.campfire.onboarding.profile_setup.data.remote.dto.request
 
 import com.google.gson.annotations.SerializedName
-import java.time.LocalDate
 
 
 /**
  * Data class for the request to complete user registration
  */
-data class CompleteProfileRequest(
+data class CompleteOnboardingProfileRequest(
     @SerializedName("first_name")
     val firstName: String,
     @SerializedName("last_name")
@@ -15,7 +14,7 @@ data class CompleteProfileRequest(
     @SerializedName("email")
     val email: String,
     @SerializedName("date_of_birth")
-    val dateOfBirth: LocalDate,
+    val dateOfBirth: String,
     @SerializedName("enable_notifications")
-    val enableNotifications: Boolean,
+    val enableNotifications: Boolean
 )

@@ -3,7 +3,7 @@ package com.example.campfire.auth.di
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
-import com.example.campfire.auth.data.remote.AuthApiService
+import com.example.campfire.auth.data.remote.AuthAPIService
 import com.example.campfire.auth.data.repository.AuthRepositoryImpl
 import com.example.campfire.auth.domain.repository.AuthRepository
 import com.example.campfire.core.domain.SessionInvalidator
@@ -37,8 +37,8 @@ abstract class AuthModule {
     companion object {
         @Provides
         @Singleton
-        fun provideAuthApiService(@Named("AuthenticatedRetrofit") retrofit: Retrofit): AuthApiService {
-            return retrofit.create(AuthApiService::class.java)
+        fun provideAuthApiService(@Named("AuthenticatedRetrofit") retrofit: Retrofit): AuthAPIService {
+            return retrofit.create(AuthAPIService::class.java)
         }
         
         @Provides

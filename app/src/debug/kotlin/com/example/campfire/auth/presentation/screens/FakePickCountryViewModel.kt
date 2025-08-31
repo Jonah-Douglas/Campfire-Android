@@ -2,14 +2,13 @@ package com.example.campfire.auth.presentation.screens // Or your chosen debug/p
 
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
+import com.example.campfire.auth.domain.model.AuthAction
 import com.example.campfire.auth.presentation.AuthContract
 import com.example.campfire.auth.presentation.AuthNavigationEvent
-import com.example.campfire.auth.presentation.CompleteProfileUIState
 import com.example.campfire.auth.presentation.CountryUIModel
 import com.example.campfire.auth.presentation.SendOTPUIState
-import com.example.campfire.auth.presentation.UserMessage
 import com.example.campfire.auth.presentation.VerifyOTPUIState
-import com.example.campfire.auth.presentation.navigation.AuthAction
+import com.example.campfire.core.presentation.UserMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,9 +38,6 @@ class FakePickCountryViewModel(
     private val _fakeSendOTPUIState = MutableStateFlow(initialSendOTPState)
     override val sendOTPUIState: StateFlow<SendOTPUIState> = _fakeSendOTPUIState
     
-    // --- Implement other AuthContract members with defaults or no-ops ---
-    // (Similar to FakeEnterPhoneNumberViewModel for consistency)
-    
     private val _userMessageChannel = MutableSharedFlow<UserMessage>()
     override val userMessages: Flow<UserMessage> = _userMessageChannel.asSharedFlow()
     
@@ -55,10 +51,6 @@ class FakePickCountryViewModel(
     
     private val _fakeVerifyOTPUIState = MutableStateFlow(VerifyOTPUIState())
     override val verifyOTPUIState: StateFlow<VerifyOTPUIState> = _fakeVerifyOTPUIState
-    
-    private val _fakeCompleteProfileUiState = MutableStateFlow(CompleteProfileUIState())
-    override val completeProfileUIState: StateFlow<CompleteProfileUIState> =
-        _fakeCompleteProfileUiState
     
     override fun onRegionSelected(regionCode: String) {}
     override fun onNationalNumberInputValueChanged(newNationalNumber: TextFieldValue) {}
@@ -76,11 +68,5 @@ class FakePickCountryViewModel(
     override fun onOTPCodeChanged(newCode: TextFieldValue) {}
     override fun verifyOTP() {}
     override fun clearVerifyOTPResult() {}
-    override fun onFirstNameChanged(newName: TextFieldValue) {}
-    override fun onLastNameChanged(newName: TextFieldValue) {}
-    override fun onEmailChanged(newEmail: TextFieldValue) {}
-    override fun onDateOfBirthInputChanged(newDobInput: TextFieldValue) {}
-    override fun onEnableNotificationsChanged(enabled: Boolean) {}
-    override fun completeUserProfile() {}
-    override fun clearCompleteProfileResult() {}
+    override fun handleAuthAction(action: AuthAction) {}
 }

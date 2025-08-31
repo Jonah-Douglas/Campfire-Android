@@ -17,6 +17,10 @@
     <string name="enter_your_phone_number_prompt">What\'s your phone \nnumber?</string>
     <string name="send_code_as_text_info">Campfire will send you a text with a verification code. Message and data rates may apply.</string>
     <string name="send_code_button">Send Code</string>
+    <string name="send_otp_successful">Sent OTP successfully.</string>
+    <string name="error_otp_format_empty">Phone number is empty.</string>
+    <string name="error_otp_format_length">Phone number is invalid length.</string>
+    <string name="error_otp_format_nonnumeric">Phone number contains non-numeric characters.</string>
 
     <!-- Pick Country Picker Dialog Screen -->
     <string name="select_country_dialog_title">Select Country</string>

@@ -4,10 +4,10 @@ import com.example.campfire.auth.data.local.AuthTokens
 import com.example.campfire.auth.data.local.IAuthTokenManager
 import com.example.campfire.auth.data.remote.TokenRefreshAPIService
 import com.example.campfire.auth.data.remote.dto.request.RefreshTokenRequest
-import com.example.campfire.auth.data.remote.dto.response.ApiResponse
 import com.example.campfire.auth.data.remote.dto.response.RefreshedTokensResponse
 import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.data.network.TokenAuthenticator.Companion.MAX_RETRIES
+import com.example.campfire.core.data.remote.dto.response.APIResponse
 import com.example.campfire.core.domain.SessionInvalidator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -153,7 +153,7 @@ class TokenAuthenticator @Inject constructor(
                 val refreshCall = tokenRefreshApiService
                     .refreshAuthToken(RefreshTokenRequest(refreshToken = currentRefreshToken))
                 
-                val refreshAPIResponse: retrofit2.Response<ApiResponse<RefreshedTokensResponse>>
+                val refreshAPIResponse: retrofit2.Response<APIResponse<RefreshedTokensResponse>>
                 try {
                     refreshAPIResponse = refreshCall.execute()
                 } catch (e: IOException) {

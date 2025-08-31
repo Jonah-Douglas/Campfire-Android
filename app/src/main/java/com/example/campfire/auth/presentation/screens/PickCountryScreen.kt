@@ -52,7 +52,7 @@ fun PickCountryScreen(
     onCountrySelectedAndNavigateBack: (regionCode: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    Firelog.i("Composing PickCountryScreen. ViewModel hash: ${viewModel.hashCode()}")
+    Firelog.i("Composing PickCountryScreen.")
     
     val uiState by viewModel.sendOTPUIState.collectAsState()
     val availableCountries = uiState.availableCountries

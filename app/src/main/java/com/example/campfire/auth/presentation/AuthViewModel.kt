@@ -4,16 +4,18 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.campfire.R
-import com.example.campfire.auth.domain.repository.CompleteProfileResult
-import com.example.campfire.auth.domain.repository.Field
-import com.example.campfire.auth.domain.repository.SendOTPResult
-import com.example.campfire.auth.domain.repository.VerifyOTPResult
-import com.example.campfire.auth.domain.usecase.CompleteProfileUseCase
+import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.auth.domain.model.SendOTPResult
+import com.example.campfire.auth.domain.model.VerifyOTPResult
 import com.example.campfire.auth.domain.usecase.SendOTPUseCase
 import com.example.campfire.auth.domain.usecase.VerifyOTPUseCase
-import com.example.campfire.auth.presentation.navigation.AuthAction
 import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.domain.model.PhoneNumber
+import com.example.campfire.core.presentation.UserMessage
+import com.example.campfire.core.presentation.UserMessage.Snackbar
+import com.example.campfire.core.presentation.UserMessage.SnackbarString
+import com.example.campfire.core.presentation.UserMessage.Toast
+import com.example.campfire.core.presentation.UserMessage.ToastString
 import com.example.campfire.core.presentation.utils.getFlagEmojiForRegionCode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -25,9 +27,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.security.MessageDigest
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import java.util.Locale
 import javax.inject.Inject
 
@@ -58,22 +57,8 @@ data class VerifyOTPUIState(
     val errorMessage: String? = null
 )
 
-data class CompleteProfileUIState(
-    val isLoading: Boolean = false,
-    val completeProfileResult: CompleteProfileResult? = null,
-    val fieldErrors: Map<Field, String> = emptyMap(),
-    // Profile fields
-    val firstName: TextFieldValue = TextFieldValue(""),
-    val lastName: TextFieldValue = TextFieldValue(""),
-    val email: TextFieldValue = TextFieldValue(""),
-    val dateOfBirth: LocalDate? = null,
-    val dateOfBirthInput: TextFieldValue = TextFieldValue(""),
-    val enableNotifications: Boolean = true
-)
-
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val completeProfileUseCase: CompleteProfileUseCase,
     private val sendOTPUseCase: SendOTPUseCase,
     private val verifyOTPUseCase: VerifyOTPUseCase
 ) : ViewModel(), AuthContract {
@@ -83,10 +68,6 @@ class AuthViewModel @Inject constructor(
     
     private val _verifyOTPUIState = MutableStateFlow(VerifyOTPUIState())
     override val verifyOTPUIState: StateFlow<VerifyOTPUIState> = _verifyOTPUIState.asStateFlow()
-    
-    private val _completeProfileUIState = MutableStateFlow(CompleteProfileUIState())
-    override val completeProfileUIState: StateFlow<CompleteProfileUIState> =
-        _completeProfileUIState.asStateFlow()
     
     private val _phoneNumberForVerification = MutableStateFlow<String?>(null)
     override val currentPhoneNumberForVerification: StateFlow<String?>
@@ -102,20 +83,18 @@ class AuthViewModel @Inject constructor(
     private var currentAuthActionInternal: AuthAction = AuthAction.LOGIN
     private var currentFullPhoneNumberTarget: String? = null
     
-    // A simple hashing function for PII
+    // Simple hashing function for PII
     private fun String.toSha256(): String {
         return MessageDigest.getInstance("SHA-256")
             .digest(this.toByteArray())
             .fold("") { str, it -> str + "%02x".format(it) }
-            .take(16) // Take first 16 chars for brevity in logs
+            .take(16) // Shorten for logs
     }
     
     init {
         Firelog.i("ViewModel initialized. Loading available countries.")
         loadAvailableCountries()
-        // Set initial default country code
         val defaultRegion = Locale.getDefault().country
-        
         val countries = _sendOTPUIState.value.availableCountries
         val defaultCountryIsSupported = countries.any { it.regionCode == defaultRegion }
         
@@ -126,6 +105,7 @@ class AuthViewModel @Inject constructor(
             val fallbackRegion = countries.firstOrNull()?.regionCode ?: "US"
             Firelog.i("Applying fallback region '$fallbackRegion'.")
             onRegionSelected(fallbackRegion)
+            
             if (defaultRegion.isNotBlank() && !defaultCountryIsSupported) {
                 Firelog.w("Device default region '$defaultRegion' is not in the configured available countries, used fallback '$fallbackRegion'.")
             } else if (defaultRegion.isBlank()) {
@@ -273,6 +253,7 @@ class AuthViewModel @Inject constructor(
                         )
                     }...' (len ${newNationalNumberText.length})"
                 )
+                
                 currentState.copy(
                     currentAuthAction = action,
                     selectedRegionCode = regionToSelect.uppercase(Locale.ROOT),
@@ -289,6 +270,7 @@ class AuthViewModel @Inject constructor(
                     validationError = null,
                 )
             }
+            
             _verifyOTPUIState.value = VerifyOTPUIState()
             Firelog.d("VerifyOTPUIState reset for new context.")
         } else {
@@ -301,6 +283,7 @@ class AuthViewModel @Inject constructor(
     }
     
     // --- Send OTP ---
+    
     override fun attemptSendOTP() {
         val currentState = _sendOTPUIState.value
         val nationalNum = currentState.nationalNumberInput.text
@@ -315,7 +298,7 @@ class AuthViewModel @Inject constructor(
                 Firelog.d("Updating SendOTPUIState: validationError='$errorMsg'")
                 it.copy(validationError = errorMsg)
             }
-            viewModelScope.launch { _userMessageChannel.send(UserMessage.SnackbarString(errorMsg)) }
+            viewModelScope.launch { _userMessageChannel.send(SnackbarString(errorMsg)) }
             return
         }
         if (nationalNum.isBlank()) {
@@ -325,7 +308,7 @@ class AuthViewModel @Inject constructor(
                 Firelog.d("Updating SendOTPUIState: validationError='$errorMsg'")
                 it.copy(validationError = errorMsg)
             }
-            viewModelScope.launch { _userMessageChannel.send(UserMessage.SnackbarString(errorMsg)) }
+            viewModelScope.launch { _userMessageChannel.send(SnackbarString(errorMsg)) }
             return
         }
         val countryDialCodeNumeric = currentState.displayCountryDialCode.filter { it.isDigit() }
@@ -344,7 +327,7 @@ class AuthViewModel @Inject constructor(
                     parsedPhoneNumber = constructedPhoneNumber
                 )
             }
-            viewModelScope.launch { _userMessageChannel.send(UserMessage.SnackbarString(errorMsg)) }
+            viewModelScope.launch { _userMessageChannel.send(SnackbarString(errorMsg)) }
             return
         }
         
@@ -358,11 +341,11 @@ class AuthViewModel @Inject constructor(
                 Firelog.d("Updating SendOTPUIState: validationError='$errorMsg'")
                 it.copy(validationError = errorMsg, isLoading = false)
             }
-            viewModelScope.launch { _userMessageChannel.send(UserMessage.SnackbarString(errorMsg)) }
+            viewModelScope.launch { _userMessageChannel.send(SnackbarString(errorMsg)) }
             return
         }
         
-        // Log the HASH of the number being sent
+        // Log hash of the number being sent
         val e164HashForLog = e164NumberToSend.toSha256()
         Firelog.i("attemptSendOTP: Phone number is valid. Proceeding to send OTP to E.164 (hash): $e164HashForLog")
         
@@ -395,8 +378,8 @@ class AuthViewModel @Inject constructor(
             if (result is SendOTPResult.Success) {
                 Firelog.i("OTP Sent successfully to E.164 (hash): $e164HashForLog. Navigating to OTP verification.")
                 _authNavigationEventChannel.send(
-                    AuthNavigationEvent.ToOTPVerifiedScreen(
-                        phoneNumber = e164NumberToSend, // Pass raw number to next screen
+                    AuthNavigationEvent.ToOTPVerificationScreen(
+                        phoneNumber = e164NumberToSend,
                         originatingAction = currentAuthActionInternal
                     )
                 )
@@ -404,7 +387,7 @@ class AuthViewModel @Inject constructor(
             } else if (result is SendOTPResult.Generic) {
                 viewModelScope.launch {
                     _userMessageChannel.send(
-                        UserMessage.SnackbarString(
+                        SnackbarString(
                             result.message ?: ERROR_GENERIC
                         )
                     )
@@ -419,6 +402,7 @@ class AuthViewModel @Inject constructor(
     }
     
     // --- Verify OTP ---
+    
     override fun onOTPCodeChanged(newCode: TextFieldValue) {
         Firelog.v("onOTPCodeChanged: new OTP length ${newCode.text.length}, text (last char): '${newCode.text.lastOrNull()}'")
         if (newCode.text.length <= OTP_LENGTH && newCode.text.all { it.isDigit() }) {
@@ -434,112 +418,172 @@ class AuthViewModel @Inject constructor(
         
         if (phoneToVerify == null) {
             Firelog.e("verifyOTP: currentFullPhoneNumberTarget is null. Cannot proceed.")
-            viewModelScope.launch { _userMessageChannel.send(UserMessage.Snackbar(R.string.error_phone_invalid_generic)) }
+            viewModelScope.launch { _userMessageChannel.send(Snackbar(R.string.error_phone_invalid_generic)) }
             return
         }
         
         val action = currentAuthActionInternal
+        val phoneHashForLog = phoneToVerify.toSha256()
+        Firelog.i("verifyOTP: Triggered for phone (hash): $phoneHashForLog, action: $action, OTP length: ${otpCode.length}")
         
         viewModelScope.launch {
-            _verifyOTPUIState.update { it.copy(isLoading = true, verifyOTPResult = null) }
+            _verifyOTPUIState.update {
+                it.copy(
+                    isLoading = true,
+                    verifyOTPResult = null,
+                    errorMessage = null
+                )
+            }
             val result =
                 verifyOTPUseCase(
                     phoneNumber = phoneToVerify,
                     otpCode = otpCode,
                     authAction = action
                 )
+            Firelog.i("verifyOTPUseCase for phone (hash) $phoneHashForLog returned: ${result::class.simpleName}")
             _verifyOTPUIState.update { it.copy(isLoading = false, verifyOTPResult = result) }
             
             when (result) {
                 is VerifyOTPResult.SuccessLogin -> {
-                    _userMessageChannel.send(UserMessage.Toast(R.string.login_successful))
-                    _authNavigationEventChannel.send(AuthNavigationEvent.ToMainApp)
+                    Firelog.i("VerifyOTPResult.SuccessLogin for phone (hash) $phoneHashForLog. Navigating to Main App.")
+                    _userMessageChannel.send(Toast(R.string.login_successful))
+                    _authNavigationEventChannel.send(AuthNavigationEvent.ToFeed)
                 }
                 
                 is VerifyOTPResult.SuccessRegistration -> {
-                    _userMessageChannel.send(UserMessage.Toast(R.string.otp_verified_proceed_profile))
-                    _authNavigationEventChannel.send(AuthNavigationEvent.ToProfileCompletion)
+                    Firelog.i("VerifyOTPResult.SuccessRegistration for phone (hash) $phoneHashForLog. Navigating to Onboarding.")
+                    _userMessageChannel.send(Toast(R.string.otp_verified_proceed_profile))
+                    _authNavigationEventChannel.send(AuthNavigationEvent.ToOnboarding)
                 }
                 
+                // JD TODO: Make sure I am doing something with the isProfileComplete (might need to return the full user object from the backend, def need to see if the profile is complete and if the user completed app setup too)
                 is VerifyOTPResult.SuccessButUserExistedDuringRegistration -> {
-                    _userMessageChannel.send(UserMessage.ToastString("Welcome back! Logged you in."))
-                    _authNavigationEventChannel.send(AuthNavigationEvent.ToMainApp)
+                    Firelog.i("VerifyOTPResult.SuccessButUserExistedDuringRegistration for phone (hash) $phoneHashForLog.")
+                    val isProfileComplete =
+                        false//result.isProfileComplete // Assuming result carries this
+                    // OR checkUserRepository.isUserProfileComplete(result.userId)
+                    
+                    if (isProfileComplete) {
+                        _userMessageChannel.send(ToastString("Welcome back! Logged you in."))
+                        _authNavigationEventChannel.send(AuthNavigationEvent.ToFeed)
+                    } else {
+                        _userMessageChannel.send(ToastString("Welcome back! Let's finish your profile."))
+                        _authNavigationEventChannel.send(AuthNavigationEvent.ToOnboarding)
+                    }
                 }
                 
                 // Handle errors
-                is VerifyOTPResult.OTPIncorrect -> _userMessageChannel.send(UserMessage.Snackbar(R.string.error_otp_incorrect))
-                is VerifyOTPResult.OTPExpired -> _userMessageChannel.send(UserMessage.Snackbar(R.string.error_otp_expired))
-                is VerifyOTPResult.RateLimited -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
-                        result.message ?: ERROR_RATE_LIMITED_VERIFYING_OTP
-                    )
-                )
+                is VerifyOTPResult.InvalidOTPFormat.Empty -> {
+                    Firelog.w("VerifyOTPResult.InvalidOTPFormat for phone (hash) $phoneHashForLog.")
+                    _userMessageChannel.send(Snackbar(R.string.error_otp_format_empty))
+                }
                 
-                is VerifyOTPResult.Network -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
-                        result.message ?: ERROR_NETWORK_VERIFY_OTP
-                    )
-                )
+                is VerifyOTPResult.InvalidOTPFormat.IncorrectLength -> {
+                    Firelog.w("VerifyOTPResult.InvalidOTPFormat for phone (hash) $phoneHashForLog.")
+                    _userMessageChannel.send(Snackbar(R.string.error_otp_format_length))
+                }
                 
-                is VerifyOTPResult.Generic -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
-                        result.message ?: ERROR_GENERIC
+                is VerifyOTPResult.InvalidOTPFormat.NonNumeric -> {
+                    Firelog.w("VerifyOTPResult.InvalidOTPFormat for phone (hash) $phoneHashForLog.")
+                    _userMessageChannel.send(Snackbar(R.string.error_otp_format_nonnumeric))
+                }
+                
+                is VerifyOTPResult.OTPIncorrect -> {
+                    Firelog.w("VerifyOTPResult.OTPIncorrect for phone (hash) $phoneHashForLog.")
+                    _userMessageChannel.send(Snackbar(R.string.error_otp_incorrect))
+                }
+                
+                is VerifyOTPResult.OTPExpired -> {
+                    Firelog.w("VerifyOTPResult.OTPExpired for phone (hash) $phoneHashForLog.")
+                    _userMessageChannel.send(Snackbar(R.string.error_otp_expired))
+                }
+                
+                is VerifyOTPResult.RateLimited -> {
+                    Firelog.w("VerifyOTPResult.RateLimited for phone (hash) $phoneHashForLog: ${result.message}")
+                    _userMessageChannel.send(
+                        SnackbarString(
+                            result.message ?: ERROR_RATE_LIMITED_VERIFYING_OTP
+                        )
                     )
-                )
+                }
+                
+                is VerifyOTPResult.Network -> {
+                    Firelog.w("VerifyOTPResult.Network for phone (hash) $phoneHashForLog: ${result.message}")
+                    _userMessageChannel.send(
+                        SnackbarString(
+                            result.message ?: ERROR_NETWORK_VERIFY_OTP
+                        )
+                    )
+                }
+                
+                is VerifyOTPResult.Generic -> {
+                    Firelog.e("VerifyOTPResult.Generic for phone (hash) $phoneHashForLog: ${result.message}")
+                    _userMessageChannel.send(
+                        SnackbarString(
+                            result.message ?: ERROR_GENERIC
+                        )
+                    )
+                }
             }
         }
     }
     
     override fun resendOTP() {
         val phoneToResend = currentFullPhoneNumberTarget
-        
         if (phoneToResend == null) {
             Firelog.e("resendOTP: currentFullPhoneNumberTarget is null. Cannot proceed.")
-            viewModelScope.launch { _userMessageChannel.send(UserMessage.Snackbar(R.string.error_phone_invalid_generic)) }
+            viewModelScope.launch { _userMessageChannel.send(Snackbar(R.string.error_phone_invalid_generic)) }
             return
         }
         
         val action = currentAuthActionInternal
+        val phoneHashForLog = phoneToResend.toSha256()
+        Firelog.i("resendOTP: Triggered for phone (hash): $phoneHashForLog, action: $action")
         
         viewModelScope.launch {
             _sendOTPUIState.update { it.copy(isLoading = true, sendOTPResult = null) }
             val result = sendOTPUseCase(phoneToResend, action)
+            Firelog.i("resendOTP (sendOTPUseCase) for phone (hash) $phoneHashForLog returned: ${result::class.simpleName}")
             _sendOTPUIState.update { it.copy(isLoading = false, sendOTPResult = result) }
             
             when (result) {
-                is SendOTPResult.Success -> {}
+                is SendOTPResult.Success -> {
+                    Firelog.i("OTP Resent successfully to E.164 (hash): $phoneHashForLog.")
+                    _userMessageChannel.send(Toast(R.string.send_otp_successful))
+                }
+                
                 is SendOTPResult.InvalidPhoneNumber -> _userMessageChannel.send(
-                    UserMessage.Snackbar(
+                    Snackbar(
                         R.string.error_phone_invalid_generic
                     )
                 )
                 
                 is SendOTPResult.RateLimited -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
+                    SnackbarString(
                         result.message ?: ERROR_RATE_LIMITED_SENDING_OTP
                     )
                 )
                 
                 is SendOTPResult.UserAlreadyExists -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
+                    SnackbarString(
                         result.message ?: ERROR_PHONE_NUMBER_REGISTERED
                     )
                 )
                 
                 is SendOTPResult.UserNotFound -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
+                    SnackbarString(
                         result.message ?: ERROR_PHONE_NUMBER_NOT_FOUND
                     )
                 )
                 
                 is SendOTPResult.Network -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
+                    SnackbarString(
                         result.message ?: ERROR_NETWORK_SEND_OTP
                     )
                 )
                 
                 is SendOTPResult.Generic -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
+                    SnackbarString(
                         result.message ?: ERROR_GENERIC
                     )
                 )
@@ -553,128 +597,9 @@ class AuthViewModel @Inject constructor(
         _verifyOTPUIState.update { it.copy(verifyOTPResult = null, errorMessage = null) }
     }
     
-    // --- Complete Profile---
-    override fun onFirstNameChanged(newName: TextFieldValue) {
-        _completeProfileUIState.update {
-            it.copy(firstName = newName, fieldErrors = it.fieldErrors - Field.FIRST_NAME)
-        }
-    }
-    
-    override fun onLastNameChanged(newName: TextFieldValue) {
-        _completeProfileUIState.update {
-            it.copy(lastName = newName, fieldErrors = it.fieldErrors - Field.LAST_NAME)
-        }
-    }
-    
-    override fun onEmailChanged(newEmail: TextFieldValue) {
-        _completeProfileUIState.update {
-            it.copy(email = newEmail, fieldErrors = it.fieldErrors - Field.EMAIL)
-        }
-    }
-    
-    override fun onDateOfBirthInputChanged(newDobInput: TextFieldValue) {
-        _completeProfileUIState.update {
-            val dob = try {
-                LocalDate.parse(newDobInput.text, DateTimeFormatter.ISO_LOCAL_DATE)
-            } catch (_: DateTimeParseException) {
-                null
-            }
-            it.copy(
-                dateOfBirthInput = newDobInput,
-                dateOfBirth = dob,
-                fieldErrors = it.fieldErrors - Field.DATE_OF_BIRTH
-            )
-        }
-    }
-    
-    override fun onEnableNotificationsChanged(enabled: Boolean) {
-        _completeProfileUIState.update { it.copy(enableNotifications = enabled) }
-    }
-    
-    override fun completeUserProfile() {
-        val uiState = _completeProfileUIState.value
-        // Basic validation, enhance as needed
-        val fieldErrors = mutableMapOf<Field, String>()
-        if (uiState.firstName.text.isBlank()) fieldErrors[Field.FIRST_NAME] =
-            ERROR_FIRST_NAME_MISSING
-        if (uiState.lastName.text.isBlank()) fieldErrors[Field.LAST_NAME] =
-            ERROR_LAST_NAME_MISSING
-        if (uiState.email.text.isBlank()) fieldErrors[Field.EMAIL] =
-            ERROR_EMAIL_MISSING
-        if (uiState.dateOfBirth == null && uiState.dateOfBirthInput.text.isNotBlank()) { // If input exists but couldn't parse
-            fieldErrors[Field.DATE_OF_BIRTH] = ERROR_DOB_INVALID
-        } else if (uiState.dateOfBirth == null) {
-            fieldErrors[Field.DATE_OF_BIRTH] = ERROR_DOB_MISSING
-        }
-        
-        
-        if (fieldErrors.isNotEmpty()) {
-            _completeProfileUIState.update { it.copy(fieldErrors = fieldErrors) }
-            viewModelScope.launch { _userMessageChannel.send(UserMessage.Snackbar(R.string.error_validation_check_fields)) }
-            return
-        }
-        
+    override fun handleAuthAction(action: AuthAction) {
         viewModelScope.launch {
-            _completeProfileUIState.update {
-                it.copy(
-                    isLoading = true,
-                    completeProfileResult = null,
-                    fieldErrors = emptyMap()
-                )
-            }
-            val result = completeProfileUseCase(
-                firstName = uiState.firstName.text.trim(),
-                lastName = uiState.lastName.text.trim(),
-                email = uiState.email.text.trim(),
-                dateOfBirth = uiState.dateOfBirth,
-                enableNotifications = uiState.enableNotifications
-            )
-            _completeProfileUIState.update { currentState ->
-                currentState.copy(
-                    isLoading = false,
-                    completeProfileResult = result,
-                    fieldErrors = (result as? CompleteProfileResult.Validation)?.errors
-                        ?: emptyMap()
-                )
-            }
-            
-            when (result) {
-                is CompleteProfileResult.Success -> {
-                    _userMessageChannel.send(UserMessage.Toast(R.string.profile_completed_success))
-                    _authNavigationEventChannel.send(AuthNavigationEvent.ToMainApp)
-                }
-                
-                is CompleteProfileResult.Validation -> {
-                    _userMessageChannel.send(UserMessage.Snackbar(R.string.error_validation_check_fields))
-                }
-                
-                is CompleteProfileResult.EmailAlreadyExists -> _userMessageChannel.send(
-                    UserMessage.Snackbar(
-                        R.string.error_email_already_exists
-                    )
-                )
-                
-                is CompleteProfileResult.Network -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
-                        result.message ?: ERROR_NETWORK_COMPLETE_PROFILE
-                    )
-                )
-                
-                is CompleteProfileResult.Generic -> _userMessageChannel.send(
-                    UserMessage.SnackbarString(
-                        result.message ?: ERROR_COMPLETE_PROFILE_GENERIC
-                    )
-                )
-            }
-        }
-    }
-    
-    override fun clearCompleteProfileResult() {
-        _completeProfileUIState.update {
-            it.copy(
-                completeProfileResult = null,
-                fieldErrors = emptyMap()
-            )
+            _authNavigationEventChannel.send(AuthNavigationEvent.ToEnterPhoneNumberScreen(action))
         }
     }
     
@@ -687,13 +612,6 @@ class AuthViewModel @Inject constructor(
         private const val ERROR_PHONE_NUMBER_NOT_FOUND = "This phone number is not found for login."
         private const val ERROR_NETWORK_SEND_OTP = "Network error sending OTP."
         private const val ERROR_NETWORK_VERIFY_OTP = "Network error verifying OTP."
-        private const val ERROR_NETWORK_COMPLETE_PROFILE = "Network error completing profile."
         private const val ERROR_GENERIC = "Could not send OTP."
-        private const val ERROR_FIRST_NAME_MISSING = "First name required."
-        private const val ERROR_LAST_NAME_MISSING = "Last name required."
-        private const val ERROR_EMAIL_MISSING = "Email required."
-        private const val ERROR_DOB_MISSING = "Date of birth required."
-        private const val ERROR_DOB_INVALID = "Date of birth is invalid."
-        private const val ERROR_COMPLETE_PROFILE_GENERIC = "Could not complete profile."
     }
 }

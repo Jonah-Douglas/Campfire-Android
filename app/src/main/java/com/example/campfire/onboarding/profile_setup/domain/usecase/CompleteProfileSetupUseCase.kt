@@ -1,20 +1,18 @@
-package com.example.campfire.auth.domain.usecase
+package com.example.campfire.onboarding.profile_setup.domain.usecase
 
-import com.example.campfire.auth.data.remote.dto.request.CompleteProfileRequest
-import com.example.campfire.auth.domain.repository.AuthRepository
-import com.example.campfire.auth.domain.repository.CompleteProfileResult
-import com.example.campfire.auth.domain.repository.Field
 import com.example.campfire.core.common.validation.ValidationPatterns
+import com.example.campfire.onboarding.profile_setup.domain.model.CompleteProfileSetupResult
+import com.example.campfire.onboarding.profile_setup.domain.model.ProfileSetupField
+import com.example.campfire.onboarding.profile_setup.domain.repository.ProfileSetupRepository
 import java.time.LocalDate
 import javax.inject.Inject
-
 
 /**
  * Use case for completing a user's profile after initial phone verification.
  * Validates user details and calls the repository to update the profile.
  */
-class CompleteProfileUseCase @Inject constructor(
-    private val authRepository: AuthRepository
+class CompleteProfileSetupUseCase @Inject constructor(
+    private val profileSetupRepository: ProfileSetupRepository
 ) {
     
     suspend operator fun invoke(
@@ -23,55 +21,55 @@ class CompleteProfileUseCase @Inject constructor(
         email: String,
         dateOfBirth: LocalDate?,
         enableNotifications: Boolean
-    ): CompleteProfileResult {
+    ): CompleteProfileSetupResult {
         
-        val validationErrors = mutableMapOf<Field, String>()
+        val validationErrors = mutableMapOf<ProfileSetupField, String>()
         
         // 1. Validate First Name
         if (firstName.isBlank()) {
-            validationErrors[Field.FIRST_NAME] = ERROR_FIRST_NAME_EMPTY
+            validationErrors[ProfileSetupField.FIRST_NAME] = ERROR_FIRST_NAME_EMPTY
         }
         
         // 2. Validate Last Name
         if (lastName.isBlank()) {
-            validationErrors[Field.LAST_NAME] = ERROR_LAST_NAME_EMPTY
+            validationErrors[ProfileSetupField.LAST_NAME] = ERROR_LAST_NAME_EMPTY
         }
         
         // 3. Validate Email
         if (email.isBlank()) {
-            validationErrors[Field.EMAIL] = ERROR_EMAIL_EMPTY
+            validationErrors[ProfileSetupField.EMAIL] = ERROR_EMAIL_EMPTY
         } else if (!ValidationPatterns.isValidEmail(email.trim())) {
-            validationErrors[Field.EMAIL] = ERROR_INVALID_EMAIL
+            validationErrors[ProfileSetupField.EMAIL] = ERROR_INVALID_EMAIL
         }
         
         // 4. Validate Date of Birth
         if (dateOfBirth == null) {
-            validationErrors[Field.DATE_OF_BIRTH] = ERROR_DATE_OF_BIRTH_EMPTY
+            validationErrors[ProfileSetupField.DATE_OF_BIRTH] = ERROR_DATE_OF_BIRTH_EMPTY
         } else {
             val today = LocalDate.now()
             
             if (dateOfBirth.isAfter(today.minusYears(MIN_AGE))) {
-                validationErrors[Field.DATE_OF_BIRTH] = String.format(ERROR_BELOW_MIN_AGE, MIN_AGE)
+                validationErrors[ProfileSetupField.DATE_OF_BIRTH] =
+                    String.format(ERROR_BELOW_MIN_AGE, MIN_AGE)
             } else if (dateOfBirth.isBefore(today.minusYears(MAX_AGE))) {
-                validationErrors[Field.DATE_OF_BIRTH] = String.format(ERROR_OVER_MAX_AGE, MAX_AGE)
+                validationErrors[ProfileSetupField.DATE_OF_BIRTH] =
+                    String.format(ERROR_OVER_MAX_AGE, MAX_AGE)
             }
         }
         
         // If there are any validation errors, return them
         if (validationErrors.isNotEmpty()) {
-            return CompleteProfileResult.Validation(validationErrors)
+            return CompleteProfileSetupResult.Validation(validationErrors)
         }
         
-        val request = CompleteProfileRequest(
+        // Call the repository to complete the profile
+        val result = profileSetupRepository.completeProfileSetup(
             firstName = firstName.trim(),
             lastName = lastName.trim(),
             email = email.trim(),
             dateOfBirth = dateOfBirth!!,
             enableNotifications = enableNotifications
         )
-        
-        // Call the repository to complete the profile
-        val result = authRepository.completeUserProfile(request)
         
         return result
     }

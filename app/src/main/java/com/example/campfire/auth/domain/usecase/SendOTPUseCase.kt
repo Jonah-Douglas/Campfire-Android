@@ -1,8 +1,8 @@
 package com.example.campfire.auth.domain.usecase
 
+import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.auth.domain.model.SendOTPResult
 import com.example.campfire.auth.domain.repository.AuthRepository
-import com.example.campfire.auth.domain.repository.SendOTPResult
-import com.example.campfire.auth.presentation.navigation.AuthAction
 import javax.inject.Inject
 
 

@@ -1,7 +1,6 @@
-package com.example.campfire.auth.data.remote.dto.response
+package com.example.campfire.core.data.remote.dto.response
 
 import com.google.gson.annotations.SerializedName
-
 
 /**
  * A generic wrapper for all API responses, standardizing the structure
@@ -11,9 +10,9 @@ import com.google.gson.annotations.SerializedName
  * @property success Indicates whether the API operation was successful.
  * @property data The actual data payload of type [T] if the operation was successful. Typically null on failure.
  * @property message An optional message from the API, can be present for success or failure.
- * @property error An [ApiError] object containing error details if the operation failed. Typically null on success.
+ * @property error An [APIErrorResponse] object containing error details if the operation failed. Typically null on success.
  */
-data class ApiResponse<T>(
+data class APIResponse<T>(
     @SerializedName("success")
     val success: Boolean,
     @SerializedName("data")
@@ -21,5 +20,5 @@ data class ApiResponse<T>(
     @SerializedName("message")
     val message: String? = null,
     @SerializedName("error")
-    val error: ApiError? = null
+    val error: APIErrorResponse? = null
 )

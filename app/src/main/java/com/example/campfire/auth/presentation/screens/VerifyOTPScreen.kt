@@ -48,13 +48,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.campfire.R
-import com.example.campfire.auth.domain.repository.VerifyOTPResult
+import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.auth.domain.model.VerifyOTPResult
 import com.example.campfire.auth.presentation.AuthContract
 import com.example.campfire.auth.presentation.AuthViewModel
-import com.example.campfire.auth.presentation.UserMessage
 import com.example.campfire.auth.presentation.VerifyOTPUIState
-import com.example.campfire.auth.presentation.navigation.AuthAction
 import com.example.campfire.core.common.logging.Firelog
+import com.example.campfire.core.presentation.UserMessage
 import kotlinx.coroutines.flow.collectLatest
 
 
@@ -64,14 +64,13 @@ fun VerifyOTPScreen(
     phoneNumberFromNav: String,
     authActionFromNav: AuthAction,
     viewModel: AuthContract = hiltViewModel<AuthViewModel>(),
-    onNavigateBack: () -> Unit,
+    onNavigateBack: () -> Unit
 ) {
     Firelog.i("Composing VerifyOTPScreen. AuthAction: $authActionFromNav, Phone (hash): ${phoneNumberFromNav.hashCode()}, VM Hash: ${viewModel.hashCode()}")
     
     val verifyUIState by viewModel.verifyOTPUIState.collectAsState()
     val sendUIState by viewModel.sendOTPUIState.collectAsState()
     val currentDisplayPhoneNumber by viewModel.currentPhoneNumberForVerification.collectAsState()
-    
     
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -143,7 +142,6 @@ fun VerifyOTPScreen(
     LaunchedEffect(verifyUIState) {
         Firelog.v("verifyUIState changed: isLoading=${verifyUIState.isLoading}, otpCode='${verifyUIState.otpCode.text}', result=${verifyUIState.verifyOTPResult?.javaClass?.simpleName}")
     }
-    // Log UI state changes for OTP sending
     LaunchedEffect(sendUIState) {
         Firelog.v("sendUIState changed (for resend): isLoading=${sendUIState.isLoading}, result=${sendUIState.sendOTPResult?.javaClass?.simpleName}")
     }

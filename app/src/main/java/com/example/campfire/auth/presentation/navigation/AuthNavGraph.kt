@@ -1,6 +1,7 @@
 package com.example.campfire.auth.presentation.navigation
 
-import androidx.compose.material3.Text
+import android.annotation.SuppressLint
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -9,24 +10,42 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.auth.presentation.AuthNavigationEvent
 import com.example.campfire.auth.presentation.AuthViewModel
 import com.example.campfire.auth.presentation.screens.EnterPhoneNumberScreen
 import com.example.campfire.auth.presentation.screens.EntryScreen
 import com.example.campfire.auth.presentation.screens.PickCountryScreen
 import com.example.campfire.auth.presentation.screens.VerifyOTPScreen
 import com.example.campfire.core.common.logging.Firelog
+import com.example.campfire.core.presentation.navigation.AppGraphRoutes
 
 
+@SuppressLint("UnrememberedGetBackStackEntry")
 fun NavGraphBuilder.authGraph(
     navController: NavHostController,
+    onNavigateToProfileSetup: () -> Unit,
+    onNavigateToFeed: () -> Unit
 ) {
+    val graphScopedAuthViewModel: @Composable () -> AuthViewModel = {
+        hiltViewModel(remember { navController.getBackStackEntry(AppGraphRoutes.AUTH_FEATURE_ROUTE) })
+    }
+    
     composable(AuthScreen.Entry.route) {
         Firelog.i("Navigating to EntryScreen")
-        EntryScreen(
-            onNavigateToEnterPhoneNumber = { authAction ->
-                Firelog.i("EntryScreen: Navigating to EnterPhoneNumberScreen with action: $authAction")
-                navController.navigate(AuthScreen.EnterPhoneNumber.createRoute(authAction)) { }
+        val authViewModel = graphScopedAuthViewModel()
+        
+        LaunchedEffect(key1 = authViewModel) {
+            authViewModel.authNavigationEvents.collect { event ->
+                if (event is AuthNavigationEvent.ToEnterPhoneNumberScreen) {
+                    Firelog.i("AuthNavGraph (Entry): Navigating to EnterPhoneNumberScreen with action: ${event.action}")
+                    navController.navigate(AuthScreen.EnterPhoneNumber.createRoute(event.action))
+                }
             }
+        }
+        
+        EntryScreen(
+            viewModel = authViewModel
         )
     }
     
@@ -40,8 +59,7 @@ fun NavGraphBuilder.authGraph(
         val authAction = authActionString?.let { AuthAction.valueOf(it) } ?: AuthAction.LOGIN
         
         Firelog.i("Navigating to EnterPhoneNumberScreen. AuthAction: $authAction (from arg: '$authActionString')")
-        
-        val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
+        val authViewModel = graphScopedAuthViewModel()
         Firelog.d("EnterPhoneNumberScreen: AuthViewModel instance hash: ${authViewModel.hashCode()}")
         
         val selectedRegionCodeResult =
@@ -59,10 +77,6 @@ fun NavGraphBuilder.authGraph(
         EnterPhoneNumberScreen(
             authAction = authAction,
             viewModel = authViewModel,
-            onNavigateToVerifyOTP = { phoneNumber, action ->
-                Firelog.i("EnterPhoneNumberScreen: Navigating to VerifyOTPScreen. Phone (hash): ${phoneNumber.hashCode()}, Action: $action")
-                navController.navigate(AuthScreen.VerifyOTP.createRoute(phoneNumber, action))
-            },
             onNavigateBack = {
                 Firelog.i("EnterPhoneNumberScreen: Navigating back.")
                 navController.popBackStack()
@@ -70,29 +84,30 @@ fun NavGraphBuilder.authGraph(
             onNavigateToPickCountry = {
                 Firelog.i("EnterPhoneNumberScreen: Navigating to PickCountryScreen.")
                 navController.navigate(AuthScreen.PickCountry.route)
+            },
+            onNavigateToVerifyOTP = { phoneNumber, action ->
+                Firelog.i("EnterPhoneNumberScreen: Navigating to VerifyOTPScreen. Phone (hash): ${phoneNumber.hashCode()}, Action: $action")
+                navController.navigate(AuthScreen.VerifyOTP.createRoute(phoneNumber, action))
             }
         )
     }
     
     composable(route = AuthScreen.PickCountry.route) {
         Firelog.i("Navigating to PickCountryScreen.")
-        val parentEntry =
-            remember(it) { navController.getBackStackEntry(AuthScreen.EnterPhoneNumber.route) }
-        val authViewModel: AuthViewModel = hiltViewModel(parentEntry)
-        
-        Firelog.d("PickCountryScreen: Using shared AuthViewModel instance hash: ${authViewModel.hashCode()} from parent ${parentEntry.destination.route}")
+        val authViewModel = graphScopedAuthViewModel()
+        Firelog.d("PickCountryScreen: AuthViewModel instance hash: ${authViewModel.hashCode()}")
         
         PickCountryScreen(
             viewModel = authViewModel,
+            onNavigateBack = {
+                Firelog.i("PickCountryScreen: Navigating back.")
+                navController.popBackStack()
+            },
             onCountrySelectedAndNavigateBack = { selectedRegionCode ->
                 Firelog.i("PickCountryScreen: Country selected: $selectedRegionCode. Navigating back.")
                 navController.previousBackStackEntry
                     ?.savedStateHandle
                     ?.set(AuthScreen.Args.SELECTED_REGION_CODE, selectedRegionCode)
-                navController.popBackStack()
-            },
-            onNavigateBack = {
-                Firelog.i("PickCountryScreen: Navigating back.")
                 navController.popBackStack()
             }
         )
@@ -113,11 +128,36 @@ fun NavGraphBuilder.authGraph(
         Firelog.i("Navigating to VerifyOTPScreen. Phone (from arg hash): ${phoneNumber?.hashCode()}, AuthAction: $authAction (from arg: '$authActionString')")
         
         if (phoneNumber == null || phoneNumber.isBlank()) {
+            Firelog.w("VerifyOTPScreen: Phone number is null/blank, popping back.")
             navController.popBackStack()
             return@composable
         }
         
+        val authViewModel = graphScopedAuthViewModel()
+        Firelog.d("VerifyOTPScreen: AuthViewModel instance hash: ${authViewModel.hashCode()}")
+        
+        LaunchedEffect(key1 = authViewModel) {
+            authViewModel.authNavigationEvents.collect { event ->
+                Firelog.d("VerifyOTPScreen: AuthViewModel event received: $event")
+                
+                when (event) {
+                    is AuthNavigationEvent.ToOnboarding -> {
+                        Firelog.i("VerifyOTPScreen: Calling onNavigateToProfileSetup (to RootNavGraph)")
+                        onNavigateToProfileSetup()
+                    }
+                    
+                    is AuthNavigationEvent.ToFeed -> {
+                        Firelog.i("VerifyOTPScreen: Calling onNavigateToMainApp (to RootNavGraph)")
+                        onNavigateToFeed()
+                    }
+                    
+                    else -> Firelog.d("VerifyOTPScreen: Unhandled/internal auth navigation event: $event")
+                }
+            }
+        }
+        
         VerifyOTPScreen(
+            viewModel = authViewModel,
             phoneNumberFromNav = phoneNumber,
             authActionFromNav = authAction,
             onNavigateBack = {
@@ -125,29 +165,5 @@ fun NavGraphBuilder.authGraph(
                 navController.popBackStack()
             }
         )
-    }
-    
-    composable(AuthScreen.ProfileSetupName.route) {
-        // JD TODO: Implement
-        Firelog.i("Navigating to ProfileSetupNameScreen (Placeholder)")
-        Text("Profile Setup Name Screen Placeholder (Implement Me)")
-    }
-    
-    composable(AuthScreen.ProfileSetupEmail.route) {
-        // JD TODO: Implement
-        Firelog.i("Navigating to ProfileSetupEmailScreen (Placeholder)")
-        Text("Profile Setup Email Screen Placeholder (Implement Me)")
-    }
-    
-    composable(AuthScreen.ProfileSetupDob.route) {
-        // JD TODO: Implement
-        Firelog.i("Navigating to ProfileSetupDobScreen (Placeholder)")
-        Text("Profile Setup Dob Screen Placeholder (Implement Me)")
-    }
-    
-    composable(AuthScreen.ProfileSetupNotifs.route) {
-        // JD TODO: Implement
-        Firelog.i("Navigating to ProfileSetupNotifsScreen (Placeholder)")
-        Text("Profile Setup Notifs Screen Placeholder (Implement Me)")
     }
 }

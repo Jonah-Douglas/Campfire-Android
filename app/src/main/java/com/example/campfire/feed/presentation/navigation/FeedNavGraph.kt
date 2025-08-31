@@ -1,11 +1,10 @@
-package com.example.campfire.core.presentation.navigation
+package com.example.campfire.feed.presentation.navigation
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import com.example.campfire.feed.presentation.navigation.FeedScreen
 import com.example.campfire.profile.presentation.navigation.ProfileScreen
 import com.example.campfire.settings.presentation.navigation.SettingsScreen
 
@@ -20,7 +19,7 @@ import com.example.campfire.settings.presentation.navigation.SettingsScreen
  * within this graph.
  *
  * This function is typically called within a `NavHost`'s `navigation` block that uses
- * [AppGraphRoutes.MAIN_APP_GRAPH_ROUTE] as its route.
+ * [com.example.campfire.core.presentation.navigation.AppGraphRoutes.FEED_FEATURE_ROUTE] as its route.
  *
  * @param navController The [NavHostController] used for navigating between screens
  *                      within this graph and potentially to other graphs.
@@ -30,7 +29,7 @@ import com.example.campfire.settings.presentation.navigation.SettingsScreen
  *                 the global logout logic, such as clearing session data and navigating
  *                 back to the authentication graph.
  */
-fun NavGraphBuilder.mainAppGraph(
+fun NavGraphBuilder.feedNavGraph(
     navController: NavHostController,
     onLogout: () -> Unit
 ) {

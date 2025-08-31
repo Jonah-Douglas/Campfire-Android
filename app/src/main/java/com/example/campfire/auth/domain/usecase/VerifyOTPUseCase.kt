@@ -1,8 +1,8 @@
 package com.example.campfire.auth.domain.usecase
 
+import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.auth.domain.model.VerifyOTPResult
 import com.example.campfire.auth.domain.repository.AuthRepository
-import com.example.campfire.auth.domain.repository.VerifyOTPResult
-import com.example.campfire.auth.presentation.navigation.AuthAction
 import javax.inject.Inject
 
 
@@ -21,10 +21,10 @@ class VerifyOTPUseCase @Inject constructor(
     ): VerifyOTPResult {
         // 1. Validate OTP format
         if (otpCode.isBlank()) {
-            return VerifyOTPResult.Generic(message = ERROR_OTP_EMPTY)
+            return VerifyOTPResult.InvalidOTPFormat.Empty(message = ERROR_OTP_EMPTY)
         }
         if (otpCode.length != OTP_LENGTH) {
-            return VerifyOTPResult.Generic(
+            return VerifyOTPResult.InvalidOTPFormat.IncorrectLength(
                 message = String.format(
                     ERROR_INVALID_OTP_DIGIT_COUNT,
                     OTP_LENGTH
@@ -32,12 +32,12 @@ class VerifyOTPUseCase @Inject constructor(
             )
         }
         if (!otpCode.all { it.isDigit() }) {
-            return VerifyOTPResult.Generic(message = ERROR_INVALID_OTP_DIGITS)
+            return VerifyOTPResult.InvalidOTPFormat.NonNumeric(message = ERROR_INVALID_OTP_DIGITS)
         }
         
         // 2. Validate phone number (basic check, more comprehensive validation might be elsewhere)
         if (phoneNumber.isBlank()) {
-            return VerifyOTPResult.Generic(message = ERROR_PHONE_NUMBER_EMPTY)
+            throw IllegalArgumentException(ERROR_PHONE_NUMBER_EMPTY)
         }
         
         // 3. If validations pass, proceed to repository call

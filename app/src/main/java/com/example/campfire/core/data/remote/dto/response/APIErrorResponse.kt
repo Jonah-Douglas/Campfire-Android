@@ -1,7 +1,6 @@
-package com.example.campfire.auth.data.remote.dto.response
+package com.example.campfire.core.data.remote.dto.response
 
 import com.google.gson.annotations.SerializedName
-
 
 /**
  * Represents a generic error structure received from the API.
@@ -11,7 +10,7 @@ import com.google.gson.annotations.SerializedName
  * @property fields An optional map of field-specific error messages, where the key is
  *   the field name and the value is the error description for that field.
  */
-data class ApiError(
+data class APIErrorResponse(
     @SerializedName("error_code")
     val code: String,
     @SerializedName("details")

@@ -2,14 +2,13 @@ package com.example.campfire.auth.presentation.screens
 
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
+import com.example.campfire.auth.domain.model.AuthAction
 import com.example.campfire.auth.presentation.AuthContract
 import com.example.campfire.auth.presentation.AuthNavigationEvent
-import com.example.campfire.auth.presentation.CompleteProfileUIState
 import com.example.campfire.auth.presentation.SendOTPUIState
-import com.example.campfire.auth.presentation.UserMessage
 import com.example.campfire.auth.presentation.VerifyOTPUIState
-import com.example.campfire.auth.presentation.navigation.AuthAction
 import com.example.campfire.core.domain.model.PhoneNumber
+import com.example.campfire.core.presentation.UserMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -135,6 +134,8 @@ class FakeEnterPhoneNumberViewModel(
         }
     }
     
+    override fun handleAuthAction(action: AuthAction) {}
+    
     override fun clearSendOTPResult() {
         _fakeSendOTPUIState.update {
             it.copy(sendOTPResult = null, validationError = null, isLoading = false)
@@ -144,20 +145,8 @@ class FakeEnterPhoneNumberViewModel(
     private val _fakeVerifyOTPUIState = MutableStateFlow(VerifyOTPUIState())
     override val verifyOTPUIState: StateFlow<VerifyOTPUIState> = _fakeVerifyOTPUIState.asStateFlow()
     
-    private val _fakeCompleteProfileUiState = MutableStateFlow(CompleteProfileUIState())
-    override val completeProfileUIState: StateFlow<CompleteProfileUIState> =
-        _fakeCompleteProfileUiState.asStateFlow()
-    
     override fun onOTPCodeChanged(newCode: TextFieldValue) {}
     override fun resendOTP() {}
     override fun verifyOTP() {}
     override fun clearVerifyOTPResult() {}
-    
-    override fun onFirstNameChanged(newName: TextFieldValue) {}
-    override fun onLastNameChanged(newName: TextFieldValue) {}
-    override fun onEmailChanged(newEmail: TextFieldValue) {}
-    override fun onDateOfBirthInputChanged(newDobInput: TextFieldValue) {}
-    override fun onEnableNotificationsChanged(enabled: Boolean) {}
-    override fun completeUserProfile() {}
-    override fun clearCompleteProfileResult() {}
 }

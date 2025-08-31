@@ -35,8 +35,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.campfire.R
-import com.example.campfire.auth.presentation.navigation.AuthAction
+import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.auth.presentation.AuthContract
+import com.example.campfire.auth.presentation.AuthViewModel
 import com.example.campfire.core.common.logging.Firelog
 
 
@@ -48,7 +51,7 @@ const val ANNOTATION_PRIVACY = "https://example.com/privacy" // Replace with act
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntryScreen(
-    onNavigateToEnterPhoneNumber: (AuthAction) -> Unit
+    viewModel: AuthContract = hiltViewModel<AuthViewModel>()
 ) {
     Firelog.i("Composing EntryScreen.")
     
@@ -145,8 +148,6 @@ fun EntryScreen(
                                             uriHandler.openUri(annotation.item)
                                         } catch (e: Exception) {
                                             Firelog.e("Failed to open URI: ${annotation.item}", e)
-                                            // JD TODO: Maybe show a Snackbar to the user (would need scope then)
-                                            // scope.launch { snackbarHostState.showSnackbar("Could not open link.") }
                                         }
                                     }
                             }
@@ -159,7 +160,7 @@ fun EntryScreen(
             Button(
                 onClick = {
                     Firelog.i("Create Account button clicked. Navigating with action: ${AuthAction.REGISTER}")
-                    onNavigateToEnterPhoneNumber(AuthAction.REGISTER)
+                    viewModel.handleAuthAction(AuthAction.REGISTER)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
@@ -173,7 +174,7 @@ fun EntryScreen(
             TextButton(
                 onClick = {
                     Firelog.i("Sign In button clicked. Navigating with action: ${AuthAction.LOGIN}")
-                    onNavigateToEnterPhoneNumber(AuthAction.LOGIN)
+                    viewModel.handleAuthAction(AuthAction.LOGIN)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -192,6 +193,6 @@ fun EntryScreen(
 @Composable
 fun EntryScreenPreview() {
     MaterialTheme {
-        EntryScreen(onNavigateToEnterPhoneNumber = {})
+        EntryScreen(viewModel = FakeEntryViewModel())
     }
 }

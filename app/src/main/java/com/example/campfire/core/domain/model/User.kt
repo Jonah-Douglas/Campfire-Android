@@ -1,9 +1,7 @@
-package com.example.campfire.auth.domain.model
+package com.example.campfire.core.domain.model
 
-import com.example.campfire.core.domain.model.PhoneNumber
 import java.time.LocalDate
 import java.time.LocalDateTime
-
 
 data class User(
     val id: Long,

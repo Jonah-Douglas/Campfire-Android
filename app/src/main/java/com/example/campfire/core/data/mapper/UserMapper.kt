@@ -1,11 +1,9 @@
-package com.example.campfire.auth.data.mapper
+package com.example.campfire.core.data.mapper
 
-import com.example.campfire.auth.data.mapper.UserMapper.FieldName.FIELD_NAME_OVERALL
 import com.example.campfire.auth.data.remote.dto.response.UserResponse
-import com.example.campfire.auth.domain.model.User
 import com.example.campfire.core.common.exception.MappingException
 import com.example.campfire.core.common.logging.Firelog
-import com.example.campfire.core.data.mapper.DataTypeMapper
+import com.example.campfire.core.domain.model.User
 import javax.inject.Inject
 
 
@@ -14,11 +12,11 @@ class UserMapper @Inject constructor(
 ) {
     
     /**
-     * Maps a [UserResponse] DTO to a [User] domain model.
+     * Maps a [com.example.campfire.auth.data.remote.dto.response.UserResponse] DTO to a [com.example.campfire.core.domain.model.User] domain model.
      *
-     * @param dto The [UserResponse] object received from the data source.
-     * @return The corresponding [User] domain model.
-     * @throws MappingException if mandatory fields (like phone, dateOfBirth, email)
+     * @param dto The [com.example.campfire.auth.data.remote.dto.response.UserResponse] object received from the data source.
+     * @return The corresponding [com.example.campfire.core.domain.model.User] domain model.
+     * @throws com.example.campfire.core.common.exception.MappingException if mandatory fields (like phone, dateOfBirth, email)
      *   cannot be mapped from the DTO due to invalid format or missing data,
      *   as handled by [DataTypeMapper.mapMandatoryField].
      */
@@ -81,7 +79,7 @@ class UserMapper @Inject constructor(
             Firelog.e("Unexpected error during UserResponse mapping for id: ${dto.id}", e)
             throw MappingException(
                 message = "Unexpected error during UserResponse mapping",
-                fieldName = FIELD_NAME_OVERALL,
+                fieldName = FieldName.FIELD_NAME_OVERALL,
                 cause = e
             )
         }
@@ -96,4 +94,3 @@ class UserMapper @Inject constructor(
         const val FIELD_NAME_OVERALL = "UserResponse_Overall"
     }
 }
-

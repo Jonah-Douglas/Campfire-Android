@@ -1,7 +1,7 @@
 [versions]
 # --- Build & Language ---
-agp = "8.12.0" # Android Gradle Plugin
-kotlin = "2.2.0"
+agp = "8.12.2" # Android Gradle Plugin
+kotlin = "2.2.10"
 
 # --- AndroidX Core & Security ---
 androidxSecurityCrypto = "1.1.0"
@@ -10,20 +10,20 @@ datastore = "1.1.7"
 
 # --- AndroidX Activity & Lifecycle ---
 activityCompose = "1.10.1"
-lifecycle = "2.9.2" # General lifecycle version
-lifecycleRuntimeKtx = "2.9.2"
-lifecycleViewmodelKtx = "2.9.2"
+lifecycle = "2.9.3" # General lifecycle version
+lifecycleRuntimeKtx = "2.9.3"
+lifecycleViewmodelKtx = "2.9.3"
 
 # --- Compose ---
 androidxMaterialIcons = "1.7.8"
-composeBom = "2025.08.00"
+composeBom = "2025.08.01"
 core-splashscreen = "1.0.1"
 foundationLayout = "1.9.0"
 material = "1.12.0"
 navigationCompose = "2.9.3"
 
 # --- Dependency Injection ---
-hilt = "2.57"
+hilt = "2.57.1"
 hiltNavigationCompose = "1.2.0"
 
 # --- Networking & Serialization ---
@@ -32,7 +32,7 @@ loggingInterceptor = "5.1.0"
 retrofit = "3.0.0"
 
 # --- Utilities ---
-googleLibphonenumberVersion = "9.0.11"
+googleLibphonenumberVersion = "9.0.13"
 timber = "5.0.1"
 
 # --- Coroutines ---
