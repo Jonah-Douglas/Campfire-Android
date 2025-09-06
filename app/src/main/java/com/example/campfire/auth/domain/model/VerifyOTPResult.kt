@@ -3,18 +3,23 @@ package com.example.campfire.auth.domain.model
 import com.example.campfire.auth.data.local.AuthTokens
 
 
+data class AuthFlowSuccessDetails(
+    val tokens: AuthTokens,
+    val isNewUser: Boolean,
+    val isProfileComplete: Boolean,
+    val isAppSetupComplete: Boolean
+)
+
+
 /**
  * Represents the result of an attempt to verify an OTP.
  */
 sealed interface VerifyOTPResult {
-    data class SuccessLogin(val tokens: AuthTokens) : VerifyOTPResult
-    data class SuccessRegistration(val tokens: AuthTokens) : VerifyOTPResult
-    
     /**
-     * OTP was valid, but the user already existed during a registration attempt.
-     * This might lead to treating it as a login or prompting the user.
+     * OTP verification was successful, and tokens were issued.
+     * Contains details about the user's state for onboarding.
      */
-    data class SuccessButUserExistedDuringRegistration(val tokens: AuthTokens) : VerifyOTPResult
+    data class Success(val details: AuthFlowSuccessDetails) : VerifyOTPResult
     
     // Client-side validation errors for OTP format
     sealed interface InvalidOTPFormat : VerifyOTPResult {

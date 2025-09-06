@@ -89,14 +89,14 @@ class MainActivity : ComponentActivity() {
                 
                 if (isDataReady) {
                     Firelog.d("Data is ready. Composing RootNavGraph.")
-                    val isAuthenticatedNullable by globalStateViewModel.authState.collectAsState()
-                    val isProfileSetupCompleteNullable by globalStateViewModel.isProfileSetupComplete.collectAsState()
-                    val isAppSetupCompleteNullable by globalStateViewModel.isAppSetupComplete.collectAsState()
+                    val isAuthenticated by globalStateViewModel.authState.collectAsState()
+                    val isProfileSetupComplete by globalStateViewModel.isProfileSetupComplete.collectAsState()
+                    val isAppSetupComplete by globalStateViewModel.isAppSetupComplete.collectAsState()
                     
                     val appState = AppState(
-                        isAuthenticated = isAuthenticatedNullable ?: false,
-                        isProfileSetupComplete = isProfileSetupCompleteNullable ?: false,
-                        isAppSetupComplete = isAppSetupCompleteNullable ?: false
+                        isAuthenticated = isAuthenticated,
+                        isProfileSetupComplete = isProfileSetupComplete,
+                        isAppSetupComplete = isAppSetupComplete
                     )
                     Firelog.v("Current AppState for RootNavGraph: $appState")
                     
@@ -105,13 +105,14 @@ class MainActivity : ComponentActivity() {
                         appState = appState,
                         onUserInitiatedLogout = {
                             globalStateViewModel.userLoggedOut()
-                            navController.navigate(AppGraphRoutes.AUTH_FEATURE_ROUTE) {}
                         },
                         onProfileSetupCompleted = {
                             Firelog.i("MainActivity: Core Profile Setup reported as complete.")
+                            globalStateViewModel.setProfileSetupComplete(true)
                         },
                         onAppSetupCompleted = {
                             Firelog.i("MainActivity: App Setup reported as complete.")
+                            globalStateViewModel.setAppSetupComplete(true)
                         }
                     )
                 } else {

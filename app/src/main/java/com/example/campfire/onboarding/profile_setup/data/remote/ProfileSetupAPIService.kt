@@ -1,8 +1,8 @@
 package com.example.campfire.onboarding.profile_setup.data.remote
 
-import com.example.campfire.auth.data.remote.dto.response.UserResponse
 import com.example.campfire.core.data.remote.dto.response.APIResponse
 import com.example.campfire.onboarding.profile_setup.data.remote.dto.request.CompleteOnboardingProfileRequest
+import com.example.campfire.onboarding.profile_setup.data.remote.dto.response.UserProfileResponse
 import retrofit2.http.Body
 import retrofit2.http.POST
 
@@ -17,5 +17,5 @@ interface ProfileSetupAPIService {
      * On success, returns an ApiResponse containing UserResponse in its data field.
      */
     @POST("/me/complete-profile")
-    suspend fun completeOnboardingProfile(@Body request: CompleteOnboardingProfileRequest): APIResponse<UserResponse>
+    suspend fun completeOnboardingProfile(@Body request: CompleteOnboardingProfileRequest): APIResponse<UserProfileResponse>
 }

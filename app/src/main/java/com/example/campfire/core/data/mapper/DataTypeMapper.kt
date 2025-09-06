@@ -126,4 +126,43 @@ interface DataTypeMapper {
         fieldName: String,
         transform: (T?) -> R?
     ): R
+    
+    /**
+     * Maps a potentially nullable DTO (Data Transfer Object) value to a potentially
+     * nullable domain model field.
+     *
+     * Implementations should handle the transformation of the [dtoValue] using the
+     * provided [transform] lambda. If the [dtoValue] is `null`, implementations
+     * should typically return `null` without invoking the [transform].
+     *
+     * If the [dtoValue] is non-null, the [transform] function is applied.
+     * Implementations must define how errors during this transformation are handled:
+     *  - They might return `null` if the transformation logic within the [transform]
+     *    lambda itself results in `null` (e.g., for an unparseable but optional value).
+     *  - They might throw a [com.example.campfire.core.common.exception.MappingException]
+     *    (or other relevant exception) if a non-null [dtoValue] cannot be transformed
+     *    due to being malformed or invalid, and this is considered an error condition
+     *    even for a nullable field.
+     *
+     * @param T The type of the source DTO field's value.
+     * @param R The type of the resulting nullable domain model field.
+     * @param dtoValue The potentially nullable value from the DTO (or other source data).
+     * @param fieldName A descriptive name of the field being mapped. This can be used
+     *                  for logging or providing context in error messages if the
+     *                  transformation fails.
+     * @param transform A lambda function that takes a **non-null** [dtoValue] of type [T]
+     *                  and attempts to transform it into a nullable domain model value of type [R]?.
+     *                  This lambda may produce `null` if the transformation is not possible or appropriate,
+     *                  or it might throw an exception if the input [T] is invalid.
+     * @return The transformed, nullable domain model value (`R?`), or `null` if the
+     *         input [dtoValue] was `null` or if the transformation resulted in `null`.
+     * @throws com.example.campfire.core.common.exception.MappingException (or other)
+     *         Implementations may throw this if the [transform] function fails for a
+     *         non-null [dtoValue] and this failure is considered an error.
+     */
+    fun <T, R> mapNullableField(
+        dtoValue: T?,
+        fieldName: String,
+        transform: (T) -> R?
+    ): R?
 }

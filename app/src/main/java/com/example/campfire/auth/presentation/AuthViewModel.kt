@@ -437,38 +437,40 @@ class AuthViewModel @Inject constructor(
             val result =
                 verifyOTPUseCase(
                     phoneNumber = phoneToVerify,
-                    otpCode = otpCode,
-                    authAction = action
+                    otpCode = otpCode
                 )
             Firelog.i("verifyOTPUseCase for phone (hash) $phoneHashForLog returned: ${result::class.simpleName}")
             _verifyOTPUIState.update { it.copy(isLoading = false, verifyOTPResult = result) }
             
             when (result) {
-                is VerifyOTPResult.SuccessLogin -> {
-                    Firelog.i("VerifyOTPResult.SuccessLogin for phone (hash) $phoneHashForLog. Navigating to Main App.")
-                    _userMessageChannel.send(Toast(R.string.login_successful))
-                    _authNavigationEventChannel.send(AuthNavigationEvent.ToFeed)
-                }
-                
-                is VerifyOTPResult.SuccessRegistration -> {
-                    Firelog.i("VerifyOTPResult.SuccessRegistration for phone (hash) $phoneHashForLog. Navigating to Onboarding.")
-                    _userMessageChannel.send(Toast(R.string.otp_verified_proceed_profile))
-                    _authNavigationEventChannel.send(AuthNavigationEvent.ToOnboarding)
-                }
-                
-                // JD TODO: Make sure I am doing something with the isProfileComplete (might need to return the full user object from the backend, def need to see if the profile is complete and if the user completed app setup too)
-                is VerifyOTPResult.SuccessButUserExistedDuringRegistration -> {
-                    Firelog.i("VerifyOTPResult.SuccessButUserExistedDuringRegistration for phone (hash) $phoneHashForLog.")
-                    val isProfileComplete =
-                        false//result.isProfileComplete // Assuming result carries this
-                    // OR checkUserRepository.isUserProfileComplete(result.userId)
+                is VerifyOTPResult.Success -> {
+                    val details = result.details
+                    Firelog.i(
+                        "VerifyOTPResult.Success for phone (hash) $phoneHashForLog. " +
+                                "isNewUser: ${details.isNewUser}, " +
+                                "isProfileComplete: ${details.isProfileComplete}, " +
+                                "isAppSetupComplete: ${details.isAppSetupComplete}"
+                    )
                     
-                    if (isProfileComplete) {
-                        _userMessageChannel.send(ToastString("Welcome back! Logged you in."))
-                        _authNavigationEventChannel.send(AuthNavigationEvent.ToFeed)
+                    if (details.isNewUser) {
+                        // This is definitively a new user registration flow
+                        // Expect profile and app setup to be false
+                        _userMessageChannel.send(Toast(R.string.otp_verified_proceed_profile))
+                        _authNavigationEventChannel.send(AuthNavigationEvent.ToProfileSetup)
                     } else {
-                        _userMessageChannel.send(ToastString("Welcome back! Let's finish your profile."))
-                        _authNavigationEventChannel.send(AuthNavigationEvent.ToOnboarding)
+                        // This is an existing user logging in, OR
+                        // it was a registration attempt but the user already existed.
+                        if (!details.isProfileComplete) {
+                            _userMessageChannel.send(ToastString("Welcome back! Let's finish your profile."))
+                            _authNavigationEventChannel.send(AuthNavigationEvent.ToProfileSetup)
+                        } else if (!details.isAppSetupComplete) {
+                            _userMessageChannel.send(ToastString("Profile complete! Let's set up the app."))
+                            _authNavigationEventChannel.send(AuthNavigationEvent.ToAppSetup)
+                        } else {
+                            // Fully onboarded user
+                            _userMessageChannel.send(Toast(R.string.login_successful))
+                            _authNavigationEventChannel.send(AuthNavigationEvent.ToFeed)
+                        }
                     }
                 }
                 

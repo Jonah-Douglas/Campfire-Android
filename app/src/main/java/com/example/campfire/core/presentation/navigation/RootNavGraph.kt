@@ -78,19 +78,7 @@ fun RootNavGraph(
             route = AppGraphRoutes.AUTH_FEATURE_ROUTE
         ) {
             authGraph(
-                navController = navController,
-                onNavigateToProfileSetup = {
-                    Firelog.d("Navigating from Auth to Profile Setup.")
-                    navController.navigate(AppGraphRoutes.PROFILE_SETUP_FEATURE_ROUTE) {
-                        popUpTo(AppGraphRoutes.AUTH_FEATURE_ROUTE) { inclusive = true }
-                    }
-                },
-                onNavigateToFeed = {
-                    Firelog.d("Navigating from Auth to Feed.")
-                    navController.navigate(AppGraphRoutes.FEED_FEATURE_ROUTE) {
-                        popUpTo(AppGraphRoutes.AUTH_FEATURE_ROUTE) { inclusive = true }
-                    }
-                }
+                navController = navController
             )
         }
         

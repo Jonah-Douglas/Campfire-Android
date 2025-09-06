@@ -4,18 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.campfire.auth.data.local.IAuthTokenManager
 import com.example.campfire.core.common.logging.Firelog
-import com.example.campfire.core.domain.session.SessionEvent
+import com.example.campfire.core.domain.model.SessionEvent
 import com.example.campfire.core.domain.session.UserSessionManager
 import com.example.campfire.core.domain.usecase.GetAppSetupCompletionStatusUseCase
 import com.example.campfire.core.domain.usecase.GetProfileSetupCompletionStatusUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,39 +31,54 @@ import javax.inject.Inject
  * it from becoming a catch-all for unrelated logic.
  *
  * This ViewModel handles:
- *  - **Application Readiness:** Determining if essential application data (like initial auth
- *    status and persisted onboarding flags) is loaded and the UI is ready to be displayed
- *    (see [isDataReady]). This is primarily consumed by `MainActivity` to manage the splash screen.
+ *  - **Application Readiness:** Determining if essential application data (like initial
+ *    authentication status and persisted onboarding flags) is loaded and the UI is ready to
+ *    be displayed (see [isDataReady]). This is primarily consumed by `MainActivity` to
+ *    manage the splash screen.
  *  - **Authentication Status:** Exposing the current authentication state of the user
  *    (see [authState]), allowing various parts of the UI to react to login/logout events.
- *    This state is derived from initial token checks and session invalidation events.
+ *    This state is primarily derived from [UserSessionManager] and initial token checks.
  *  - **Onboarding Completion Status:** Continuously observing and exposing whether the user
- *    has completed foundational setup steps, specifically core profile setup (see [isCoreProfileComplete])
- *    and app-specific setup (see [isAppSetupComplete]). These states are determined by
- *    querying dedicated use cases that typically read from persistent storage (e.g., DataStore).
- *    These onboarding flags **persist across user sessions** and are not reset on logout.
+ *    has completed foundational setup steps, specifically core profile setup (see
+ *    [isProfileSetupComplete]) and app-specific setup (see [isAppSetupComplete]).
+ *    These states are sourced from [UserSessionManager], which typically reflects persisted
+ *    values (e.g., from DataStore). These onboarding flags **persist across user sessions**
+ *    and are not reset on logout.
  *  - **Session Invalidation Handling:** Observes session invalidation events (e.g., due to token
- *    expiry detected elsewhere) via [UserSessionManager] and updates its authentication state accordingly,
- *    triggering UI changes such as navigation to the authentication flow.
+ *    expiry detected elsewhere) via [UserSessionManager] and updates its authentication state
+ *    accordingly, potentially triggering UI changes such as navigation to the authentication flow
+ *    via [triggerNavigateToAuth].
  *
- * Upon initialization ([loadInitialAppState]), it asynchronously fetches the initial authentication
- * status (by checking for existing tokens) and obtains the initial values of persisted onboarding
- * completion flags. It then continuously collects updates to these onboarding flags.
+ * Upon initialization (within its `init` block), it asynchronously:
+ *  1. Checks for existing authentication tokens via [tokenRepository] to determine an
+ *     initial authentication status.
+ *  2. Ensures consistency between token presence and the session state reported by [UserSessionManager].
+ *  3. Sets [isDataReady] to `true` once these initial checks are complete, relying on
+ *     [UserSessionManager] to provide the initial states for [authState],
+ *     [isProfileSetupComplete], and [isAppSetupComplete].
  *
- * It provides methods like [userLoggedIn] and [userLoggedOut] to allow other parts of the
- * application (typically other ViewModels or navigation event handlers) to signal changes in
- * authentication state. Token storage operations (saving/clearing tokens) and the direct updating
- * of persisted onboarding flags are explicitly **not** handled by this ViewModel; they are the
- * responsibility of other, more specialized layers (e.g., auth data/domain layer, onboarding
- * feature ViewModels). This ViewModel reacts to the *outcomes* of those operations by reflecting
- * the current state.
+ * It provides methods like [userLoggedOut] to allow other parts of the application
+ * (typically other ViewModels or navigation event handlers) to signal changes in
+ * authentication state. The direct management of token storage (saving/clearing tokens)
+ * and the direct updating of persisted onboarding flags are explicitly **not** handled by
+ * this ViewModel; they are the responsibility of other, more specialized layers (e.g.,
+ * auth data/domain layer, onboarding feature ViewModels, or [UserSessionManager] itself for
+ * session-related flags). This ViewModel reacts to the *outcomes* of those operations by
+ * reflecting the current state as exposed by [UserSessionManager] or initial token checks.
  *
  * Logging of key lifecycle events and state changes is performed using [Firelog].
  *
  * @property getAppSetupCompletionStatusUseCase Use case to observe the app setup completion status.
+ *           (Note: Current implementation sources this via UserSessionManager.
+ *           This property might be for future use or an alternative observation mechanism).
  * @property getProfileSetupCompletionStatusUseCase Use case to observe the core profile setup completion status.
- * @property userSessionManager Manages and emits session-related events, like invalidation.
- * @property tokenRepository Source for checking the initial presence of authentication tokens.
+ *           (Note: Current implementation sources this via UserSessionManager.
+ *           This property might be for future use or an alternative observation mechanism).
+ * @property userSessionManager Manages user session state (authentication, profile completion,
+ *           app setup completion) and emits session-related events like invalidation. It is the
+ *           primary source for [authState], [isProfileSetupComplete], and [isAppSetupComplete].
+ * @property tokenRepository Source for checking the initial presence of authentication tokens,
+ *           used to establish the initial [isDataReady] state.
  */
 @HiltViewModel
 class GlobalStateViewModel @Inject constructor(
@@ -82,116 +98,68 @@ class GlobalStateViewModel @Inject constructor(
      */
     val isDataReady: StateFlow<Boolean> = _isDataReady.asStateFlow()
     
-    private val _authState = MutableStateFlow<Boolean?>(null)
-    
     /**
-     * A [StateFlow] representing the current authentication status of the user.
-     * `null` if the initial status is not yet determined.
-     * `true` if the user is considered authenticated.
-     * `false` if the user is not authenticated or session is invalid.
-     * This state is observed by UI components across the application to adapt to user login/logout.
+     * A [StateFlow] representing the current authentication state of the user.
+     * `true` if the user is considered authenticated, `false` otherwise.
+     * This state is derived from [UserSessionManager].
      */
-    val authState: StateFlow<Boolean?> = _authState.asStateFlow()
-    
-    private val _isProfileSetupComplete = MutableStateFlow<Boolean?>(null)
+    val authState: StateFlow<Boolean> = userSessionManager.isAuthenticatedFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     
     /**
      * A [StateFlow] indicating whether the user has completed the core profile setup.
-     * `null` if the status is not yet determined.
-     * `true` if completed, `false` otherwise.
+     * `true` if complete, `false` otherwise. Persists across sessions.
+     * This state is derived from [UserSessionManager].
      */
-    val isProfileSetupComplete: StateFlow<Boolean?> = _isProfileSetupComplete.asStateFlow()
-    
-    private val _isAppSetupComplete = MutableStateFlow<Boolean?>(null)
+    val isProfileSetupComplete: StateFlow<Boolean> = userSessionManager.isProfileCompleteFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     
     /**
-     * A [StateFlow] indicating whether the user has completed the app-specific setup.
-     * `null` if the status is not yet determined.
-     * `true` if completed, `false` otherwise.
+     * A [StateFlow] indicating whether the user has completed app-specific setup steps.
+     * `true` if complete, `false` otherwise. Persists across sessions.
+     * This state is derived from [UserSessionManager].
      */
-    val isAppSetupComplete: StateFlow<Boolean?> = _isAppSetupComplete.asStateFlow()
+    val isAppSetupComplete: StateFlow<Boolean> = userSessionManager.isAppSetupCompleteFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     
     private val _triggerNavigateToAuth = MutableSharedFlow<Unit>(replay = 0)
     
     /**
-     * A [kotlinx.coroutines.flow.SharedFlow] that emits an event to signal that navigation to the
-     * authentication feature should occur. This is typically triggered by session invalidation.
+     * A [SharedFlow] that emits an event to signal that navigation to the
+     * authentication flow is required, typically due to session invalidation.
+     * Observers can collect this flow to react to such events.
      */
     val triggerNavigateToAuth = _triggerNavigateToAuth.asSharedFlow()
     
     init {
         Firelog.d(LOG_VIEWMODEL_INITIALIZED)
-        loadInitialAppState()
         
-        // Observe session invalidation events
+        // Observe session invalidation events from UserSessionManager
         viewModelScope.launch {
             userSessionManager.sessionEvents.collectLatest { event ->
                 when (event) {
                     is SessionEvent.SessionInvalidated -> {
                         Firelog.i("Observed SessionInvalidated event.")
-                        _authState.value = false
                         _triggerNavigateToAuth.emit(Unit)
                     }
                 }
             }
         }
+        
         viewModelScope.launch {
-            getProfileSetupCompletionStatusUseCase().collectLatest { completed ->
-                if (_isProfileSetupComplete.value != completed) {
-                    Firelog.d("CoreProfileCompletion status updated via Flow: $completed")
-                    _isProfileSetupComplete.value = completed
-                }
-            }
-        }
-        viewModelScope.launch {
-            getAppSetupCompletionStatusUseCase().collectLatest { completed ->
-                if (_isAppSetupComplete.value != completed) {
-                    Firelog.d("AppSetupCompletion status updated via Flow: $completed")
-                    _isAppSetupComplete.value = completed
-                }
-            }
-        }
-    }
-    
-    /**
-     * Loads the initial application state regarding authentication status and persisted
-     * onboarding completion flags. This method is called once during ViewModel initialization.
-     */
-    private fun loadInitialAppState() {
-        viewModelScope.launch {
-            Firelog.d("loadInitialAppState started.")
-            // 1. Determine initial authentication status
             val storedTokens = tokenRepository.getTokens()
             val initialAuth = storedTokens != null
-            _authState.value = initialAuth
-            Firelog.i("Initial auth state set to $initialAuth.")
             
-            // 2. Load initial persisted onboarding flags.
-            if (_isProfileSetupComplete.value == null) {
-                _isProfileSetupComplete.value =
-                    getProfileSetupCompletionStatusUseCase().firstOrNull() ?: false
+            if (!initialAuth && userSessionManager.isAuthenticatedFlow().value) {
+                // Should not happen if DataStore is cleared on logout, but as a safeguard.
+                userSessionManager.clearUserSession()
+            } else if (initialAuth && !userSessionManager.isAuthenticatedFlow().value) {
+                Firelog.w("Initial token found, but UserSessionManager reports not authenticated. State might be stale until next login.")
             }
-            if (_isAppSetupComplete.value == null) {
-                _isAppSetupComplete.value =
-                    getAppSetupCompletionStatusUseCase().firstOrNull() ?: false
-            }
-            Firelog.i("Initial onboarding states loaded. ProfileComplete: ${_isProfileSetupComplete.value}, AppSetupComplete: ${_isAppSetupComplete.value}")
             
-            // 3. Mark data as ready
             _isDataReady.value = true
-            Firelog.i(LOG_ALL_DATA_READY)
+            Firelog.i("$LOG_ALL_DATA_READY (relies on UserSessionManager providing initial states)")
         }
-    }
-    
-    /**
-     * Called when the user has successfully logged in through an authentication flow.
-     * This updates the authentication state. Persisted onboarding states are already
-     * being observed and will reflect the correct status for the logged-in account.
-     */
-    fun userLoggedIn() {
-        Firelog.i("userLoggedIn called.")
-        _authState.value = true
-        Firelog.d("Auth state set to true. Onboarding states will be updated by their respective collectors.")
     }
     
     /**
@@ -201,8 +169,36 @@ class GlobalStateViewModel @Inject constructor(
      * user's account and persist across sessions.
      */
     fun userLoggedOut() {
-        Firelog.i("userLoggedOut called (state update only).")
-        _authState.value = false
+        Firelog.i("userLoggedOut called. Instructing UserSessionManager to clear session.")
+        viewModelScope.launch {
+            userSessionManager.clearUserSession()
+        }
+    }
+    
+    /**
+     * Updates the persisted status of the core profile setup completion.
+     * This method delegates the actual persistence to the [UserSessionManager].
+     * The updated status will be reflected in the [isProfileSetupComplete] StateFlow.
+     *
+     * @param isComplete `true` if profile setup is now complete, `false` otherwise.
+     */
+    fun setProfileSetupComplete(isComplete: Boolean) {
+        viewModelScope.launch {
+            userSessionManager.updateProfileSetupComplete(isComplete)
+        }
+    }
+    
+    /**
+     * Updates the persisted status of the app-specific setup completion.
+     * This method delegates the actual persistence to the [UserSessionManager].
+     * The updated status will be reflected in the [isAppSetupComplete] StateFlow.
+     *
+     * @param isComplete `true` if app-specific setup is now complete, `false` otherwise.
+     */
+    fun setAppSetupComplete(isComplete: Boolean) {
+        viewModelScope.launch {
+            userSessionManager.updateAppSetupComplete(isComplete)
+        }
     }
     
     companion object {

@@ -8,6 +8,7 @@ import com.example.campfire.auth.data.remote.dto.request.VerifyOTPRequest
 import com.example.campfire.auth.data.remote.dto.response.OTPResponse
 import com.example.campfire.auth.data.remote.dto.response.TokenResponse
 import com.example.campfire.auth.domain.model.AuthAction
+import com.example.campfire.auth.domain.model.AuthFlowSuccessDetails
 import com.example.campfire.auth.domain.model.LogoutResult
 import com.example.campfire.auth.domain.model.SendOTPResult
 import com.example.campfire.auth.domain.model.VerifyOTPResult
@@ -166,8 +167,7 @@ class AuthRepositoryImpl @Inject constructor(
     
     override suspend fun verifyOTP(
         phoneNumber: String,
-        otpCode: String,
-        authAction: AuthAction
+        otpCode: String
     ): VerifyOTPResult {
         return withContext(Dispatchers.IO) {
             try {
@@ -186,6 +186,20 @@ class AuthRepositoryImpl @Inject constructor(
                     
                     try {
                         tokenStorage.saveTokens(authTokens)
+                        Firelog.i("Tokens saved successfully.")
+                        
+                        userSessionManager.updateUserLoginAndOnboardingState(
+                            isAuthenticated = true,
+                            isProfileComplete = tokenDetails.isProfileComplete,
+                            isAppSetupComplete = tokenDetails.isAppSetupComplete
+                        )
+                        Firelog.i(
+                            "UserSessionManager updated with login and onboarding state. " +
+                                    "isNewUser: ${tokenDetails.isNewUser}, " +
+                                    "isProfileComplete: ${tokenDetails.isProfileComplete}, " +
+                                    "isAppSetupComplete: ${tokenDetails.isAppSetupComplete}"
+                        )
+                        
                     } catch (e: Exception) {
                         Firelog.e(LOG_VERIFY_OTP_TOKEN_SAVE_FAILURE, e)
                         return@withContext VerifyOTPResult.Generic(
@@ -193,17 +207,13 @@ class AuthRepositoryImpl @Inject constructor(
                         )
                     }
                     
-                    when (authAction) {
-                        AuthAction.LOGIN -> VerifyOTPResult.SuccessLogin(authTokens)
-                        AuthAction.REGISTER -> {
-                            if (tokenDetails.isNewUser) {
-                                VerifyOTPResult.SuccessRegistration(authTokens)
-                            } else {
-                                // Was a registration attempt, OTP valid, but user already existed
-                                VerifyOTPResult.SuccessButUserExistedDuringRegistration(authTokens)
-                            }
-                        }
-                    }
+                    val successDetails = AuthFlowSuccessDetails(
+                        tokens = authTokens,
+                        isNewUser = tokenDetails.isNewUser,
+                        isProfileComplete = tokenDetails.isProfileComplete,
+                        isAppSetupComplete = tokenDetails.isAppSetupComplete
+                    )
+                    VerifyOTPResult.Success(successDetails)
                 } else {
                     val generalMessage = apiResponse.message
                     val apiErrorDetails = apiResponse.error

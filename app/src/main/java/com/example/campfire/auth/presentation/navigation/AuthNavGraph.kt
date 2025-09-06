@@ -13,8 +13,8 @@ import androidx.navigation.navArgument
 import com.example.campfire.auth.domain.model.AuthAction
 import com.example.campfire.auth.presentation.AuthNavigationEvent
 import com.example.campfire.auth.presentation.AuthViewModel
+import com.example.campfire.auth.presentation.screens.AuthEntryScreen
 import com.example.campfire.auth.presentation.screens.EnterPhoneNumberScreen
-import com.example.campfire.auth.presentation.screens.EntryScreen
 import com.example.campfire.auth.presentation.screens.PickCountryScreen
 import com.example.campfire.auth.presentation.screens.VerifyOTPScreen
 import com.example.campfire.core.common.logging.Firelog
@@ -23,9 +23,7 @@ import com.example.campfire.core.presentation.navigation.AppGraphRoutes
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 fun NavGraphBuilder.authGraph(
-    navController: NavHostController,
-    onNavigateToProfileSetup: () -> Unit,
-    onNavigateToFeed: () -> Unit
+    navController: NavHostController
 ) {
     val graphScopedAuthViewModel: @Composable () -> AuthViewModel = {
         hiltViewModel(remember { navController.getBackStackEntry(AppGraphRoutes.AUTH_FEATURE_ROUTE) })
@@ -44,7 +42,7 @@ fun NavGraphBuilder.authGraph(
             }
         }
         
-        EntryScreen(
+        AuthEntryScreen(
             viewModel = authViewModel
         )
     }
@@ -141,14 +139,25 @@ fun NavGraphBuilder.authGraph(
                 Firelog.d("VerifyOTPScreen: AuthViewModel event received: $event")
                 
                 when (event) {
-                    is AuthNavigationEvent.ToOnboarding -> {
+                    is AuthNavigationEvent.ToProfileSetup -> {
                         Firelog.i("VerifyOTPScreen: Calling onNavigateToProfileSetup (to RootNavGraph)")
-                        onNavigateToProfileSetup()
+                        navController.navigate(AppGraphRoutes.PROFILE_SETUP_FEATURE_ROUTE) {
+                            popUpTo(AppGraphRoutes.AUTH_FEATURE_ROUTE) { inclusive = true }
+                        }
+                    }
+                    
+                    is AuthNavigationEvent.ToAppSetup -> {
+                        Firelog.i("VerifyOTPScreen: Navigating to App Setup via NavController.")
+                        navController.navigate(AppGraphRoutes.APP_SETUP_FEATURE_ROUTE) {
+                            popUpTo(AppGraphRoutes.AUTH_FEATURE_ROUTE) { inclusive = true }
+                        }
                     }
                     
                     is AuthNavigationEvent.ToFeed -> {
                         Firelog.i("VerifyOTPScreen: Calling onNavigateToMainApp (to RootNavGraph)")
-                        onNavigateToFeed()
+                        navController.navigate(AppGraphRoutes.FEED_FEATURE_ROUTE) {
+                            popUpTo(AppGraphRoutes.AUTH_FEATURE_ROUTE) { inclusive = true }
+                        }
                     }
                     
                     else -> Firelog.d("VerifyOTPScreen: Unhandled/internal auth navigation event: $event")

@@ -238,8 +238,6 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
         return domainEmail
     }
     
-    // --- Mandatory Field Mapping Utility ---
-    
     /**
      * Maps a DTO value that is considered mandatory for the domain model.
      * If the transformation performed by the [transform] lambda results in `null`
@@ -262,6 +260,7 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
      * @return The successfully transformed, non-nullable domain value (`R`).
      * @throws MappingException if the [transform] function returns `null`.
      */
+    @Throws(MappingException::class)
     override fun <T, R : Any> mapMandatoryField(
         dtoValue: T?,
         fieldName: String,
@@ -275,6 +274,58 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
                 message = errorMessage,
                 fieldName = fieldName
             )
+        }
+    }
+    
+    /**
+     * Maps a potentially nullable DTO value to a **nullable** domain model field,
+     * handling potential transformation errors.
+     *
+     * - If the [dtoValue] is `null`, this function returns `null` immediately without
+     *   attempting the transformation.
+     * - If the [dtoValue] is non-null:
+     *     - The [transform] lambda is applied to the (now non-null) `dtoValue`.
+     *     - If the `transform` is successful, its result (which can be `null` if the
+     *       logic within `transform` determines it so) is returned.
+     *     - If the `transform` lambda throws any [Exception] (e.g., a parsing error
+     *       because a non-null input is malformed), this function catches the exception,
+     *       logs a warning, and throws a new [MappingException].
+     *
+     * This is useful for optional DTO fields that map to optional domain fields,
+     * where a failure to transform a non-null DTO value (due to format issues, etc.)
+     * should result in a mapping error rather than silently returning `null`.
+     *
+     * @param T The type of the DTO field's value (e.g., `String?`).
+     * @param R The type of the resulting nullable domain model field (e.g., `LocalDate?`).
+     * @param dtoValue The potentially nullable value from the DTO.
+     * @param fieldName A descriptive name of the field being mapped. This is included
+     *                  in logging messages and the [MappingException] if an error occurs.
+     * @param transform A lambda function that takes a **non-null** [dtoValue] (type `T`)
+     *                  and attempts to transform it into a nullable domain value (type `R?`).
+     *                  This transform lambda may throw an exception if the input `T`
+     *                  cannot be processed.
+     * @return The transformed, nullable domain model value (`R?`), or `null` if the
+     *         input [dtoValue] was `null`.
+     * @throws MappingException if the [transform] function throws an [Exception] for a
+     *                          non-null [dtoValue], indicating a failure to map the field.
+     */
+    @Throws(MappingException::class)
+    override fun <T, R> mapNullableField(
+        dtoValue: T?,
+        fieldName: String,
+        transform: (T) -> R?
+    ): R? {
+        return dtoValue?.let {
+            try {
+                transform(it)
+            } catch (_: Exception) {
+                String.format(ERROR_NULLABLE_FIELD_UNMAPPABLE, fieldName, dtoValue)
+                Firelog.w(String.format(LOG_NULLABLE_FIELD_FAILURE, fieldName, dtoValue))
+                throw MappingException(
+                    message = "Failed to map nullable field '$fieldName'. Input: $it",
+                    fieldName = fieldName,
+                )
+            }
         }
     }
     
@@ -294,6 +345,8 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
         // Error Messages for MappingException
         private const val ERROR_MANDATORY_FIELD_UNMAPPABLE =
             "Required field '%s' could not be mapped from DTO value: '%s'"
+        private const val ERROR_NULLABLE_FIELD_UNMAPPABLE =
+            "Nullable field '%s' could not be mapped from DTO value: '%s'"
         private const val ERROR_PHONE_STRING_UNMAPPABLE =
             "Invalid phone string format: '%s'. Expected E.164 format."
         private const val ERROR_DATE_STRING_UNMAPPABLE =
@@ -304,6 +357,8 @@ class DefaultDataTypeMapper @Inject constructor() : DataTypeMapper {
         // Log Messages
         private const val LOG_MANDATORY_FIELD_FAILURE =
             "Mandatory field mapping failed for '%s'. DTO value: '%s'. Throwing MappingException."
+        private const val LOG_NULLABLE_FIELD_FAILURE =
+            "Nullable field mapping failed for '%s'. DTO value: '%s'. Throwing MappingException."
         private const val LOG_PHONE_STRING_FAILURE =
             "Failed to parse phone string: '%s'. Error: '%s'"
         private const val LOG_DATE_STRING_FAILURE =

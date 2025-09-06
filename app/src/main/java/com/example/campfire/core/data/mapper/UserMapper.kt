@@ -1,9 +1,9 @@
 package com.example.campfire.core.data.mapper
 
-import com.example.campfire.auth.data.remote.dto.response.UserResponse
 import com.example.campfire.core.common.exception.MappingException
 import com.example.campfire.core.common.logging.Firelog
 import com.example.campfire.core.domain.model.User
+import com.example.campfire.onboarding.profile_setup.data.remote.dto.response.UserProfileResponse
 import javax.inject.Inject
 
 
@@ -12,35 +12,24 @@ class UserMapper @Inject constructor(
 ) {
     
     /**
-     * Maps a [com.example.campfire.auth.data.remote.dto.response.UserResponse] DTO to a [com.example.campfire.core.domain.model.User] domain model.
+     * Maps a [UserProfileResponse] DTO to a [User] domain model.
      *
-     * @param dto The [com.example.campfire.auth.data.remote.dto.response.UserResponse] object received from the data source.
-     * @return The corresponding [com.example.campfire.core.domain.model.User] domain model.
-     * @throws com.example.campfire.core.common.exception.MappingException if mandatory fields (like phone, dateOfBirth, email)
-     *   cannot be mapped from the DTO due to invalid format or missing data,
-     *   as handled by [DataTypeMapper.mapMandatoryField].
+     * @param dto The [UserProfileResponse] object received from the data source.
+     * @return The corresponding [User] domain model.
+     * @throws MappingException if mandatory fields (like id, phone_number, created_at, updated_at)
+     *   cannot be mapped from the DTO due to missing data or invalid format, or if nullable
+     *   field transformations fail.
      */
     @Throws(MappingException::class)
-    fun mapToDomain(dto: UserResponse): User {
-        Firelog.v("Attempting to map UserResponse to User for id: ${dto.id}")
+    fun mapToDomain(dto: UserProfileResponse): User {
+        Firelog.v("Attempting to map UserProfileResponse to User for id: ${dto.id}")
         
         try {
+            // --- Mandatory DTO fields mapping to Non-Nullable Domain fields ---
             val phoneNumber = dataTypeMapper.mapMandatoryField(
-                dtoValue = dto.phone,
-                fieldName = FieldName.PHONE,
+                dtoValue = dto.phoneNumber,
+                fieldName = FieldName.PHONE_NUMBER,
                 transform = dataTypeMapper::mapStringToPhoneNumber
-            )
-            
-            val dob = dataTypeMapper.mapMandatoryField(
-                dtoValue = dto.dateOfBirth,
-                fieldName = FieldName.DATE_OF_BIRTH,
-                transform = dataTypeMapper::mapStringToLocalDate
-            )
-            
-            val email = dataTypeMapper.mapMandatoryField(
-                dtoValue = dto.email,
-                fieldName = FieldName.EMAIL,
-                transform = dataTypeMapper::mapToDomainEmail
             )
             
             val createdAtDateTime = dataTypeMapper.mapMandatoryField(
@@ -55,19 +44,45 @@ class UserMapper @Inject constructor(
                 transform = dataTypeMapper::mapStringToLocalDateTime
             )
             
+            // --- Nullable DTO fields mapping to Nullable Domain fields ---
+            val domainEmail = dto.email?.let { emailString ->
+                dataTypeMapper.mapNullableField(
+                    dtoValue = emailString,
+                    fieldName = FieldName.EMAIL,
+                    transform = { nonNullEmail -> dataTypeMapper.mapToDomainEmail(nonNullEmail) }
+                )
+            }
+            
+            val domainDOB = dto.dateOfBirth?.let { dobString ->
+                dataTypeMapper.mapNullableField(
+                    dtoValue = dobString,
+                    fieldName = FieldName.DATE_OF_BIRTH,
+                    transform = dataTypeMapper::mapStringToLocalDate
+                )
+            }
+            
+            val domainLastLoginAt = dto.lastLoginAt?.let { lastLoginString ->
+                dataTypeMapper.mapNullableField(
+                    dtoValue = lastLoginString,
+                    fieldName = FieldName.LAST_LOGIN_AT,
+                    transform = dataTypeMapper::mapStringToLocalDateTime
+                )
+            }
+            
             val user = User(
                 id = dto.id,
                 phone = phoneNumber,
                 firstName = dto.firstName,
                 lastName = dto.lastName,
-                email = email,
-                dateOfBirth = dob,
-                enableNotifications = dto.enableNotifications,
+                email = domainEmail,
+                dateOfBirth = domainDOB,
+                enableNotifications = dto.isEnableNotifications,
                 isProfileComplete = dto.isProfileComplete,
+                isAppSetupComplete = dto.isAppSetupComplete,
                 isActive = dto.isActive,
-                isSuperuser = dto.isSuperuser,
+                lastLoginAt = domainLastLoginAt,
+                updatedAt = updatedAtDateTime,
                 createdAt = createdAtDateTime,
-                updatedAt = updatedAtDateTime
             )
             
             Firelog.d("Successfully mapped UserResponse to User for id: ${user.id}")
@@ -86,11 +101,12 @@ class UserMapper @Inject constructor(
     }
     
     private object FieldName {
-        const val PHONE = "phone"
-        const val DATE_OF_BIRTH = "dateOfBirth"
+        const val PHONE_NUMBER = "phone_number"
         const val EMAIL = "email"
-        const val CREATED_AT = "createdAt"
-        const val UPDATED_AT = "updatedAt"
-        const val FIELD_NAME_OVERALL = "UserResponse_Overall"
+        const val DATE_OF_BIRTH = "date_of_birth"
+        const val LAST_LOGIN_AT = "last_login_at"
+        const val CREATED_AT = "created_at"
+        const val UPDATED_AT = "updated_at"
+        const val FIELD_NAME_OVERALL = "UserProfileResponse_Overall"
     }
 }

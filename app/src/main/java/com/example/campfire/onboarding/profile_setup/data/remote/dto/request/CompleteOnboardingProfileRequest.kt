@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 
 /**
- * Data class for the request to complete user registration
+ * Data class for the request to complete the profile setup.
  */
 data class CompleteOnboardingProfileRequest(
     @SerializedName("first_name")
@@ -13,6 +13,10 @@ data class CompleteOnboardingProfileRequest(
     val lastName: String,
     @SerializedName("email")
     val email: String,
+    /**
+     * Date of birth in "YYYY-MM-DD" format.
+     * Example: "1990-01-15"
+     */
     @SerializedName("date_of_birth")
     val dateOfBirth: String,
     @SerializedName("enable_notifications")

@@ -1,6 +1,5 @@
 package com.example.campfire.auth.domain.usecase
 
-import com.example.campfire.auth.domain.model.AuthAction
 import com.example.campfire.auth.domain.model.VerifyOTPResult
 import com.example.campfire.auth.domain.repository.AuthRepository
 import javax.inject.Inject
@@ -16,8 +15,7 @@ class VerifyOTPUseCase @Inject constructor(
     
     suspend operator fun invoke(
         phoneNumber: String,
-        otpCode: String,
-        authAction: AuthAction
+        otpCode: String
     ): VerifyOTPResult {
         // 1. Validate OTP format
         if (otpCode.isBlank()) {
@@ -43,8 +41,7 @@ class VerifyOTPUseCase @Inject constructor(
         // 3. If validations pass, proceed to repository call
         return authRepository.verifyOTP(
             phoneNumber = phoneNumber,
-            otpCode = otpCode,
-            authAction = authAction
+            otpCode = otpCode
         )
     }
     

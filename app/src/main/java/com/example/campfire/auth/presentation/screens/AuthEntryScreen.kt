@@ -50,7 +50,7 @@ const val ANNOTATION_PRIVACY = "https://example.com/privacy" // Replace with act
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EntryScreen(
+fun AuthEntryScreen(
     viewModel: AuthContract = hiltViewModel<AuthViewModel>()
 ) {
     Firelog.i("Composing EntryScreen.")
@@ -193,6 +193,6 @@ fun EntryScreen(
 @Composable
 fun EntryScreenPreview() {
     MaterialTheme {
-        EntryScreen(viewModel = FakeEntryViewModel())
+        AuthEntryScreen(viewModel = FakeEntryViewModel())
     }
 }
